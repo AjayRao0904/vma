@@ -8,9 +8,13 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'orange': '#D75C35',
-        'orange-light': '#FFE5CF',
-        'dark': '#1F1F1F',
+        'orange': '#D75C35',        // Primary orange
+        'orange-light': '#FF8A65',  // Lighter orange variant
+        'dark': '#000000',          // Pure black
+        'background': '#000000',    // Black background
+        'primary': '#D75C35',       // Primary orange
+        'secondary': '#FF8A65',     // Secondary orange
+        'black': '#000000',         // Pure black
       },
       fontFamily: {
         'poppins': ['var(--font-poppins)', 'sans-serif'],

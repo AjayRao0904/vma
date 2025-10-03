@@ -1,0 +1,36 @@
+[
+  {
+    "id": "dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b-1",
+    "name": "Scene 1",
+    "startTime": 0,
+    "endTime": 6.283410852713178,
+    "videoPath": "/scenes/dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b/scene_01.mp4",
+    "sessionId": "dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b",
+    "createdAt": "2025-09-25T19:01:22.462Z",
+    "audioVariations": [
+      {
+        "id": "dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b-1-variation-1",
+        "title": "Variation 1",
+        "duration": "00:05",
+        "isPlaying": false
+      }
+    ]
+  },
+  {
+    "id": "dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b-2",
+    "name": "Scene 2",
+    "startTime": 6.283410852713178,
+    "endTime": 15.012713000000002,
+    "videoPath": "/scenes/dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b/scene_02.mp4",
+    "sessionId": "dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b",
+    "createdAt": "2025-09-25T19:01:23.150Z",
+    "audioVariations": [
+      {
+        "id": "dfb83f70-e7a0-4b0d-a38e-ba5bc61fd15b-2-variation-1",
+        "title": "Variation 1",
+        "duration": "00:05",
+        "isPlaying": false
+      }
+    ]
+  }
+]

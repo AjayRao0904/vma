@@ -95,7 +95,7 @@ export default function LoginPage() {
                     />
                     <span className="text-white text-lg font-light">|</span>
                   </div>
-                  <div className="absolute -top-2.5 left-3 bg-[#1F1F1F] px-1">
+                  <div className="absolute -top-2.5 left-3 bg-black px-1">
                     <span className="text-[#367AFF] text-sm font-normal">Email</span>
                   </div>
                 </div>
@@ -160,7 +160,7 @@ export default function LoginPage() {
                 {/* Google Sign In Button */}
                 <button 
                   onClick={handleGoogleSignIn}
-                  className="w-full bg-white border border-[#E6E8E7] text-[#1F1F1F] font-semibold text-lg py-4 rounded-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full bg-white border border-[#E6E8E7] text-black font-semibold text-lg py-4 rounded-[10px] hover:bg-white/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
                     <path d="M8.5 6.95H16.66C16.74 7.52 16.78 8.09 16.78 8.68C16.78 12.7 14.16 15.94 8.5 15.94C4.08 15.94 0.5 12.36 0.5 7.94C0.5 3.52 4.08 -0.06 8.5 -0.06C10.64 -0.06 12.52 0.72 13.96 2.04L11.66 4.24C10.78 3.42 9.66 2.98 8.5 2.98C5.74 2.98 3.5 5.22 3.5 7.98C3.5 10.74 5.74 12.98 8.5 12.98C11.66 12.98 13.24 10.86 13.52 9.28H8.5V6.95Z" fill="#4285F4"/>

@@ -126,7 +126,7 @@ export default function Home() {
               <div className="relative">
                 <button 
                   onClick={handleLetsStart}
-                  className="relative w-[280px] md:w-[328px] h-[55px] bg-[#1F1F1F] rounded-[28px] border border-orange-light/20 overflow-hidden group hover:bg-[#2A2A2A] transition-colors"
+                  className="relative w-[280px] md:w-[328px] h-[55px] bg-black rounded-[28px] border border-orange-light/20 overflow-hidden group hover:bg-black/80 transition-colors"
                 >
                   {/* Animated glow effect on hover */}
                   <div className="absolute inset-0 rounded-[28px] opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -135,13 +135,13 @@ export default function Home() {
                   </div>
                   
                   {/* Blur effect background */}
-                  <div className="absolute inset-0 bg-[#1F1F1F] rounded-[28px] blur-[8px] z-10"></div>
+                  <div className="absolute inset-0 bg-black rounded-[28px] blur-[8px] z-10"></div>
                   
                   {/* Gradient border effect */}
                   <div className="absolute inset-0 rounded-[28px] bg-gradient-to-r from-orange to-transparent opacity-50 z-10"></div>
                   
                   {/* Button content */}
-                  <div className="relative z-20 flex items-center justify-center h-full bg-[#1F1F1F] rounded-[28px] group-hover:bg-[#2A2A2A] transition-colors">
+                  <div className="relative z-20 flex items-center justify-center h-full bg-black rounded-[28px] group-hover:bg-black/80 transition-colors">
                     <span className="text-white font-normal text-sm md:text-base leading-[1.48]">
                       {session ? 'Continue to Dashboard' : 'Let\'s Start'}
                     </span>

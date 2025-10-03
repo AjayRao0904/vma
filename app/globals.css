@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #1F1F1F;
+  --background: #000000;
   --foreground: #ffffff;
   --orange: #D75C35;
-  --orange-light: #FFE5CF;
-  --text-secondary: rgba(255, 255, 255, 0.6);
+  --orange-light: #FF8A65;
+  --text-secondary: rgba(255, 255, 255, 0.7);
 }
 
 body {
@@ -15,15 +15,19 @@ body {
 }
 
 .gradient-bg {
-  background: linear-gradient(rgba(0, 0, 0, 0.2), #1F1F1F);
+  background: linear-gradient(180deg, #000000 0%, #262626 100%);
 }
 
 .orange-gradient {
   background: linear-gradient(135deg, #D75C35 0%, #FF8A65 100%);
 }
 
+.black-to-white-gradient {
+  background: linear-gradient(180deg, #000000 0%, #262626 100%);
+}
+
 .text-orange-light {
-  color: #FFE5CF;
+  color: #FF8A65;
 }
 
 .text-secondary {
