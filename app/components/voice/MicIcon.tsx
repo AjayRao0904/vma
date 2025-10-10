@@ -1,4 +1,5 @@
 import React from 'react';
+import { logger } from '../../lib/logger';
 
 interface MicIconProps {
   isRecording?: boolean;
@@ -37,9 +38,9 @@ export const MicIcon: React.FC<MicIconProps> = ({
       {/* Main Mic Button - Only for starting recording */}
       <button
         onClick={() => {
-          console.log('Mic button clicked:', { isRecording, isFinished });
+          logger.info('Mic button clicked', { isRecording, isFinished });
           if (!isRecording && !isFinished) {
-            console.log('Starting recording...');
+            logger.info('Starting recording');
             onStartRecording?.();
           }
         }}
@@ -65,18 +66,18 @@ export const MicIcon: React.FC<MicIconProps> = ({
       {(isRecording || isFinished) && (
         <button
           onClick={() => {
-            console.log('Tick button clicked:', { isRecording, isFinished });
+            logger.info('Tick button clicked', { isRecording, isFinished });
             if (isRecording) {
               // Stop recording first, then approve
-              console.log('Stopping and approving...');
+              logger.info('Stopping and approving');
               onStopRecording?.();
               setTimeout(() => {
-                console.log('Calling onApprove...');
+                logger.info('Calling onApprove');
                 onApprove?.();
               }, 200);
             } else {
               // Just approve if already finished
-              console.log('Just approving...');
+              logger.info('Just approving');
               onApprove?.();
             }
           }}

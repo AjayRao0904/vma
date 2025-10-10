@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SidePanel from "../components/layout/SidePanel";
 import { useProjects } from "../hooks/useProjects";
+import ClientTimeDisplay from "../components/ClientTimeDisplay";
 
 export default function DashboardClient() {
   const { data: session, status } = useSession();
@@ -13,13 +14,43 @@ export default function DashboardClient() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Backend-connected project management
-  const { 
-    projects, 
-    loading, 
-    error, 
-    pagination, 
-    fetchProjects 
+  const {
+    projects,
+    loading,
+    error,
+    pagination,
+    fetchProjects
   } = useProjects();
+
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+
+  const handleDeleteProject = async (projectId: string, projectName: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation when clicking delete
+
+    if (!confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingProjectId(projectId);
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/delete`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete project');
+      }
+
+      // Refresh projects list
+      fetchProjects(searchQuery);
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      alert('Failed to delete project. Please try again.');
+    } finally {
+      setDeletingProjectId(null);
+    }
+  };
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -44,8 +75,8 @@ export default function DashboardClient() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen gradient-bg flex items-center justify-center" suppressHydrationWarning>
+        <div className="text-white text-xl" suppressHydrationWarning>Loading...</div>
       </div>
     );
   }
@@ -54,27 +85,12 @@ export default function DashboardClient() {
     return null; // Will redirect
   }
 
-  // Format creation time for display
-  const formatCreatedAt = (createdAt: string) => {
-    const date = new Date(createdAt);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffHours < 1) {
-      return 'Just now';
-    } else if (diffHours < 24) {
-      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    } else {
-      const diffDays = Math.floor(diffHours / 24);
-      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    }
-  };
+
 
   return (
-    <div className="min-h-screen gradient-bg flex">
+    <div className="min-h-screen gradient-bg flex" suppressHydrationWarning>
       {/* Sidebar using existing SidePanel component */}
-      <div className={`${isSidebarCollapsed ? 'w-[60px]' : 'w-[320px]'} transition-all duration-300`}>
+      <div className={`${isSidebarCollapsed ? 'w-[60px]' : 'w-[320px]'} transition-all duration-300`} suppressHydrationWarning>
         <SidePanel 
           currentPage="motion-pictures"
           isCollapsed={isSidebarCollapsed}
@@ -90,9 +106,12 @@ export default function DashboardClient() {
           <div className="flex gap-4">
             <button 
               onClick={() => router.push('/motion-pictures/new')}
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-white/90 transition-colors flex items-center gap-2"
             >
-              ➕ New blank project
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-black">
+                <path d="M12 5v14m-7-7h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+              New Project
             </button>
           </div>
         </div>
@@ -107,7 +126,10 @@ export default function DashboardClient() {
             className="w-full bg-black/50 text-white px-4 py-3 rounded-lg pl-10 focus:outline-none focus:ring-2 focus:ring-orange border border-white/20"
           />
           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60">
-            🔍
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
           </div>
         </div>
 
@@ -143,8 +165,8 @@ export default function DashboardClient() {
               </div>
             ) : (
               projects.map((project) => (
-                <div 
-                  key={project.id} 
+                <div
+                  key={project.id}
                   className="flex justify-between items-center text-white hover:bg-white/5 p-3 rounded-lg cursor-pointer group"
                   onClick={() => router.push(`/motion-pictures/${project.id}`)}
                 >
@@ -152,27 +174,25 @@ export default function DashboardClient() {
                     <div className="text-white/90 group-hover:text-white font-medium">
                       {project.name}
                     </div>
-                    {project.description && (
-                      <div className="text-white/50 text-sm mt-1 truncate">
-                        {project.description}
-                      </div>
-                    )}
                     <div className="flex items-center gap-2 mt-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        project.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                        project.status === 'processing' ? 'bg-orange/20 text-orange' :
-                        project.status === 'failed' ? 'bg-red-500/20 text-red-400' :
-                        'bg-white/10 text-white/60'
-                      }`}>
-                        {project.status}
-                      </span>
                       <span className="text-white/50 text-xs">
-                        {project.type}
+                        {project.description || 'No description'}
                       </span>
                     </div>
                   </div>
-                  <div className="text-white/60 text-sm ml-4">
-                    {formatCreatedAt(project.createdAt)}
+                  <div className="flex items-center gap-4">
+                    <ClientTimeDisplay 
+                      createdAt={project.createdAt} 
+                      className="text-white/60 text-sm"
+                    />
+                    <button
+                      onClick={(e) => handleDeleteProject(project.id, project.name, e)}
+                      disabled={deletingProjectId === project.id}
+                      className="opacity-0 group-hover:opacity-100 px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm border border-red-500/30"
+                      title="Delete project"
+                    >
+                      {deletingProjectId === project.id ? 'Deleting...' : '🗑️ Delete'}
+                    </button>
                   </div>
                 </div>
               ))

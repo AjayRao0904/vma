@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
 export default function Home() {
-  const [isChecked, setIsChecked] = useState(false);
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -29,37 +28,14 @@ export default function Home() {
         <div className="w-3/4 h-full orange-gradient relative overflow-hidden rounded-lg">
           <div className="absolute inset-0 flex flex-col items-center justify-end gap-6 px-6 pb-16">
             {/* Logo */}
-            <div className="w-full max-w-[300px] h-[100px] relative">
-              <div className="text-orange-light font-normal text-2xl md:text-4xl lg:text-5xl leading-[1.5] tracking-[-0.08em] absolute left-[50px] top-[15px]">
-                aalap.a
-              </div>
-              
-              {/* Vector placeholder - using a simple icon */}
-              <div className="absolute left-0 top-[30px] w-[50px] h-[45px] bg-orange-light rounded-lg flex items-center justify-center">
-                <span className="text-orange text-lg font-bold">A</span>
-              </div>
-              
-              {/* Frame with I */}
-              <div className="absolute left-[180px] top-[40px] w-[100px] h-[35px]">
-                <div className="text-orange-light font-normal text-2xl md:text-3xl lg:text-4xl leading-[1.5] tracking-[-0.08em] absolute left-[60px] top-[-15px]">
-                  I
-                </div>
-              </div>
-              
-              {/* Asterisk */}
-              <div className="text-orange-light font-normal text-2xl md:text-4xl lg:text-5xl leading-[1.5] tracking-[-0.08em] absolute left-[250px] top-0">
-                *
-              </div>
+            <div className="w-full max-w-[300px] h-[100px] relative flex items-center justify-center">
+              <img 
+                src="/aalap_logo.svg" 
+                alt="Aalap Logo" 
+                className="h-full w-auto object-contain"
+              />
             </div>
-            
-            {/* Description text */}
-            <div className="w-full max-w-[320px] text-center">
-              <p className="text-white/70 font-normal text-base md:text-lg leading-[1.32] text-center">
-                At Aalap, we're making that possible:<br />
-                fast, personal, and deeply human<br />
-                in its emotional depth.
-              </p>
-            </div>
+    
           </div>
         </div>
 
@@ -99,26 +75,6 @@ export default function Home() {
                   </p>
                 )}
               </div>
-              
-              {/* Checkbox Section */}
-              <div className="w-full flex items-center gap-3">
-                <button
-                  onClick={() => setIsChecked(!isChecked)}
-                  className="w-5 h-5 bg-white rounded-sm flex items-center justify-center flex-shrink-0"
-                >
-                  {isChecked && (
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                      <path
-                        d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z"
-                        fill="#1F1F1F"
-                      />
-                    </svg>
-                  )}
-                </button>
-                <p className="text-white/60 font-semibold text-sm md:text-base leading-[1.32]">
-                  I agree to the Terms & Conditions and Privacy Policy
-                </p>
-              </div>
             </div>
             
             {/* Button */}
@@ -130,15 +86,15 @@ export default function Home() {
                 >
                   {/* Animated glow effect on hover */}
                   <div className="absolute inset-0 rounded-[28px] opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    <div className="absolute inset-0 rounded-[28px] bg-gradient-to-r from-orange/50 via-orange-light/30 to-orange/50 animate-glow"></div>
-                    <div className="absolute inset-0 rounded-[28px] bg-gradient-conic from-orange/40 via-transparent to-orange/40 animate-rotate-glow"></div>
+                    <div className="absolute inset-0 rounded-[28px] bg-gradient-to-r from-orange-dark/50 via-orange-light/30 to-orange-dark/50 animate-glow"></div>
+                    <div className="absolute inset-0 rounded-[28px] bg-gradient-conic from-orange-dark/40 via-transparent to-orange-light/40 animate-rotate-glow"></div>
                   </div>
                   
                   {/* Blur effect background */}
                   <div className="absolute inset-0 bg-black rounded-[28px] blur-[8px] z-10"></div>
                   
                   {/* Gradient border effect */}
-                  <div className="absolute inset-0 rounded-[28px] bg-gradient-to-r from-orange to-transparent opacity-50 z-10"></div>
+                  <div className="absolute inset-0 rounded-[28px] bg-gradient-to-r from-orange-dark to-orange-light opacity-50 z-10"></div>
                   
                   {/* Button content */}
                   <div className="relative z-20 flex items-center justify-center h-full bg-black rounded-[28px] group-hover:bg-black/80 transition-colors">

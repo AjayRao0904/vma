@@ -39,44 +39,24 @@ export default function SidePanel({
       <div className="p-4 pb-0">
         <div className="flex items-end justify-between gap-[14px] mb-[62px]">
           {!isCollapsed && (
-            <div className="flex-1 h-[31px] relative max-w-[249px]">
-              <div className="w-full h-[29px] bg-[#D9D9D9] rounded-[30px] relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-orange to-orange-light opacity-50"></div>
-              </div>
-              
-              <div className="absolute left-[10px] top-0 w-[83px] h-[29.86px]">
-                <div className="absolute left-[15.56px] top-[4.63px] text-orange-light font-normal text-[16.82px] leading-[1.5] tracking-[-0.08em]">
-                  aalap.a
-                </div>
-                
-                <div className="absolute left-0 top-[10.18px] w-[16.91px] h-[14.05px] bg-orange-light rounded-sm flex items-center justify-center">
-                  <span className="text-orange text-xs font-bold">A</span>
-                </div>
-                
-                <div className="absolute left-[50.97px] top-[13.12px] w-[32.03px] h-[10.77px]">
-                  <div className="absolute left-[20.39px] top-[-4.71px] text-orange-light font-normal text-[13.46px] leading-[1.5] tracking-[-0.08em]">
-                    I
-                  </div>
-                </div>
-                
-                <div className="absolute left-[68.89px] top-0 text-orange-light font-normal text-[16.82px] leading-[1.5] tracking-[-0.08em]">
-                  *
-                </div>
-              </div>
+            <div className="flex-1 h-[31px] relative max-w-[249px] flex items-center">
+              <img 
+                src="/aalap_logo.svg" 
+                alt="Aalap Logo" 
+                className="h-[30px] w-auto object-contain"
+              />
             </div>
           )}
 
           {/* Sidebar toggle */}
           <button 
             onClick={onToggleCollapse}
-            className="w-[20px] h-[20px] bg-white rounded-sm flex items-center justify-center hover:bg-white/90 transition-colors flex-shrink-0"
+            className="w-[32px] h-[32px] bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-all duration-200 flex-shrink-0 group"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <svg width="16" height="14" viewBox="0 0 16 14" fill="none" className="text-black">
-              {isCollapsed ? (
-                <path d="M9 1l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              ) : (
-                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              )}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white group-hover:scale-110 transition-transform duration-200">
+              {/* Clean hamburger menu lines */}
+              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         </div>
@@ -86,7 +66,7 @@ export default function SidePanel({
           <div className="flex flex-col items-center gap-[62px]">
             {/* Quick Actions */}
             <div className="w-full max-w-[272px] flex flex-col gap-[18px]">
-              <h3 className="text-white/20 font-normal text-base">Quick Actions</h3>
+              <h3 className="text-white/60 font-medium text-sm uppercase tracking-wider">Quick Actions</h3>
               
               <div className="flex items-center gap-[6px]">
                 <button 
@@ -94,8 +74,8 @@ export default function SidePanel({
                   className="flex items-center gap-[18px] p-[8px_18px] rounded-lg hover:bg-white/5 transition-colors"
                 >
                   <div className="w-[20px] h-[20px] bg-white rounded-sm flex items-center justify-center">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-black">
-                      <path d="M12 5v14m-7-7h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-black">
+                      <path d="M12 5v14m-7-7h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
                     </svg>
                   </div>
                   <span className="text-white font-normal text-base">New Project</span>
@@ -154,7 +134,7 @@ export default function SidePanel({
         {/* Sign Out Button */}
         <button 
           onClick={handleSignOut}
-          className={`${isCollapsed ? 'w-8 h-8' : 'w-full max-w-[292px]'} flex items-center justify-center gap-2 p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors`}
+          className={`${isCollapsed ? 'w-8 h-8' : 'w-full max-w-[292px]'} flex items-center justify-center gap-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors border border-white/20`}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

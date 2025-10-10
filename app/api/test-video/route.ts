@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { listTempVideos, ensureTempVideosDir } from '../../utils/videoStorage';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { logger } from '../../lib/logger';
 
 export async function GET() {
   try {
@@ -15,7 +16,7 @@ export async function GET() {
       const stats = await fs.stat(tempDir);
       dirExists = stats.isDirectory();
     } catch (error) {
-      console.error('Directory check failed:', error);
+      logger.error('Directory check failed', error);
     }
 
     // List videos
@@ -32,7 +33,7 @@ export async function GET() {
       }))
     });
   } catch (error) {
-    console.error('Test API error:', error);
+    logger.error('Test API error', error);
     return NextResponse.json({
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown error'

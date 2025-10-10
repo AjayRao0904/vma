@@ -31,7 +31,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+!.env.production.example
 
 # vercel
 .vercel
@@ -41,3 +47,24 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# Application-specific - temporary files
+/tempvideos
+/testvideo
+/tempscenes
+/tempthumbnails
+/public/testthumbnails
+/public/scenes
+*.log
+dev.log
+
+# Database
+*.sql.backup
+backup.sql
+test-db-connection.js
+
+# AWS deployment
+.aws-deployment-state.json
+
+# Docker
+*.dockerfile.dev

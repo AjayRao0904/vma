@@ -42,7 +42,7 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
     }
   };
 
-  // Toggle playbook
+  // Toggle playback with immediate progress updates
   const togglePlayback = useCallback(() => {
     const video = videoRef?.current;
     if (!video) return;
@@ -76,7 +76,7 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
           }
         })
         .catch(() => {
-          setIsPlaying(false); // Reset if play fails
+          setIsPlaying(false);
         });
     } else {
       video.pause();
@@ -104,6 +104,13 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
     setIsMuted(video.muted);
   };
 
+  // Track scrubbing state with ref to avoid stale closures
+  const isScrubbingRef = React.useRef(isScrubbing);
+
+  useEffect(() => {
+    isScrubbingRef.current = isScrubbing;
+  }, [isScrubbing]);
+
   // Initialize video event listeners
   useEffect(() => {
     const video = videoRef?.current;
@@ -111,16 +118,17 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
 
     // Update time display
     const updateTime = () => {
-      if (isScrubbing) return; // Don't update while scrubbing
-      
+      // Skip updates while user is scrubbing
+      if (isScrubbingRef.current) return;
+
       const current = video.currentTime || 0;
       const dur = video.duration;
-      
+
       if (dur && !isNaN(dur) && isFinite(dur)) {
         setCurrentTime(current);
         setDuration(dur);
         setProgress((current / dur) * 100);
-        
+
         if (onTimeUpdate) {
           onTimeUpdate(current, dur);
         }
@@ -132,6 +140,16 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
       setIsPlaying(true);
       // Force immediate progress update when play starts
       updateTime();
+      
+      // Additional immediate update with current values
+      if (video.duration && !isNaN(video.duration)) {
+        setCurrentTime(video.currentTime);
+        setProgress((video.currentTime / video.duration) * 100);
+        
+        if (onTimeUpdate) {
+          onTimeUpdate(video.currentTime, video.duration);
+        }
+      }
     };
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
@@ -140,11 +158,18 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
       updateTime();
     };
 
-
+    const handleLoadedData = () => {
+      if (video.duration && !isNaN(video.duration)) {
+        setDuration(video.duration);
+        setCurrentTime(video.currentTime || 0);
+        setProgress(0);
+      }
+    };
 
     // Add event listeners
     video.addEventListener('timeupdate', updateTime);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('loadeddata', handleLoadedData);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('ended', handleEnded);
@@ -153,15 +178,48 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
     if (video.readyState >= 1) {
       handleLoadedMetadata();
     }
+    if (video.readyState >= 2) {
+      handleLoadedData();
+    }
 
     return () => {
       video.removeEventListener('timeupdate', updateTime);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('loadeddata', handleLoadedData);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [videoRef, onTimeUpdate, isScrubbing]);
+  }, [videoRef, onTimeUpdate]);
+
+  // Backup progress monitor - ensures progress updates even if timeupdate events are slow
+  useEffect(() => {
+    if (!isPlaying || isScrubbing) return;
+    
+    const video = videoRef?.current;
+    if (!video) return;
+
+    const backupUpdateInterval = setInterval(() => {
+      if (video.paused || !video.duration) {
+        clearInterval(backupUpdateInterval);
+        return;
+      }
+      
+      const current = video.currentTime;
+      const dur = video.duration;
+      
+      if (dur && !isNaN(dur) && isFinite(dur)) {
+        setCurrentTime(current);
+        setProgress((current / dur) * 100);
+        
+        if (onTimeUpdate) {
+          onTimeUpdate(current, dur);
+        }
+      }
+    }, 200); // Update every 200ms as backup
+
+    return () => clearInterval(backupUpdateInterval);
+  }, [isPlaying, isScrubbing, videoRef, onTimeUpdate]);
 
   // Auto-play when src changes
   useEffect(() => {
@@ -171,7 +229,7 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
     }
   }, [videoRef?.current?.src]);
 
-  // Force progress updates when playing starts
+  // Force rapid progress updates when playing starts
   useEffect(() => {
     if (!isPlaying) return;
     
@@ -191,7 +249,7 @@ export default function MediaPlayer({ className = '', videoRef, onTimeUpdate }: 
 
     // Set up rapid updates for the first second of playback
     const rapidUpdateInterval = setInterval(() => {
-      if (video.paused || !video.duration) {
+      if (video.paused || !video.duration || isScrubbingRef.current) {
         clearInterval(rapidUpdateInterval);
         return;
       }

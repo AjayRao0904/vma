@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 export interface VoiceMessage {
   id: string;
   audioBlob: Blob;
@@ -122,7 +124,7 @@ export class VoiceMessageHandler {
       await audioContext.close();
       return waveformData;
     } catch (error) {
-      console.error('Error generating waveform data:', error);
+      logger.error('Error generating waveform data', error);
       return [];
     }
   }
@@ -149,11 +151,11 @@ export class VoiceMessageHandler {
       const base64Audio = await this.blobToBase64(voiceMessage.audioBlob);
       
       // Placeholder API call
-      console.log('Sending voice message to backend:', {
+      logger.info('Sending voice message to backend', {
         id,
         duration: voiceMessage.duration,
         timestamp: voiceMessage.timestamp,
-        audioData: base64Audio.substring(0, 50) + '...', // Log first 50 chars
+        audioDataPreview: base64Audio.substring(0, 50) + '...'
       });
 
       // TODO: Replace with actual API call
@@ -169,10 +171,10 @@ export class VoiceMessageHandler {
       // });
 
       // return response.ok;
-      
+
       return true; // Simulate success for now
     } catch (error) {
-      console.error('Error sending voice message:', error);
+      logger.error('Error sending voice message', error);
       return false;
     }
   }
@@ -201,7 +203,7 @@ export class VoiceMessageHandler {
 
       localStorage.setItem('voiceMessages', JSON.stringify(serializedMessages));
     } catch (error) {
-      console.error('Error persisting voice messages:', error);
+      logger.error('Error persisting voice messages', error);
     }
   }
 
@@ -227,7 +229,7 @@ export class VoiceMessageHandler {
         this.voiceMessages.set(serialized.id, voiceMessage);
       }
     } catch (error) {
-      console.error('Error loading voice messages from storage:', error);
+      logger.error('Error loading voice messages from storage', error);
     }
   }
 

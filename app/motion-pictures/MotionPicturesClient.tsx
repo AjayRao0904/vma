@@ -4,38 +4,179 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useProject } from "../contexts/ProjectContext";
-import { SceneProvider } from "../contexts/SceneContext";
-import { 
-  SidePanel, 
-  ChatBox, 
-  ContentViewer, 
-  MediaPlayer, 
-  VideoInfo 
+import { SceneProvider, useScenes } from "../contexts/SceneContext";
+import { ChatProvider } from "../contexts/ChatContext";
+import {
+  SidePanel,
+  ChatBox,
+  ContentViewer,
+  MediaPlayer,
+  VideoInfo
 } from "../components";
+import { logger } from "../lib/logger";
 
-function MotionPicturesContent() {
+interface MotionPicturesContentProps {
+  projectId?: string;
+}
+
+function MotionPicturesContent({ projectId }: MotionPicturesContentProps) {
   const { data: session, status } = useSession();
-  const { currentProject, isProjectLoaded } = useProject();
+  const { currentProject, isProjectLoaded, loadProjectById } = useProject();
+  const { addExportedScenes, clearAllScenes } = useScenes();
   const router = useRouter();
   const [sidebarWidth, setSidebarWidth] = useState(310);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [chatboxWidth, setChatboxWidth] = useState(800);
+  const [chatboxWidth, setChatboxWidth] = useState(500);
   const [topSectionHeight, setTopSectionHeight] = useState(50); // percentage
-  const [isResizing, setIsResizing] = useState<'sidebar' | 'chatbox' | 'vertical' | null>(null);
+  const [isResizing, setIsResizing] = useState<'sidebar' | 'chatbox' | 'vertical' | 'timeline' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string>('');
+  const [videoId, setVideoId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
+  const loadedVideoIdRef = useRef<string | null>(null);
+  const loadedProjectIdRef = useRef<string | null>(null);
+  const loadedScenesProjectIdRef = useRef<string | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (status === "loading") return;
     if (!session) router.push("/login");
   }, [session, status, router]);
+
+  // Load project by ID if provided (only once per projectId)
+  useEffect(() => {
+    if (projectId && loadProjectById && projectId !== loadedProjectIdRef.current) {
+      console.log('Loading project by ID:', projectId);
+      loadedProjectIdRef.current = projectId;
+      loadProjectById(projectId);
+    }
+  }, [projectId, loadProjectById]);
+
+  // Debug logging for project loading state
+  useEffect(() => {
+    console.log('Project state changed:', {
+      projectId,
+      hasCurrentProject: !!currentProject,
+      currentProjectId: currentProject?.id,
+      isProjectLoaded,
+      hasScenes: !!(currentProject as any)?.scenes?.length
+    });
+  }, [projectId, currentProject, isProjectLoaded]);
+
+  // Load scenes and videos when project is loaded
+  useEffect(() => {
+    console.log('Scene loading effect triggered:', {
+      hasCurrentProject: !!currentProject,
+      currentProjectId: currentProject?.id,
+      loadedScenesProjectId: loadedScenesProjectIdRef.current,
+      isProjectLoaded
+    });
+
+    // Only load scenes if this is a different project than what's already loaded
+    if (currentProject && currentProject.id !== loadedScenesProjectIdRef.current && isProjectLoaded) {
+      console.log('Loading project scenes:', currentProject.id);
+      loadedScenesProjectIdRef.current = currentProject.id;
+
+      // Clear existing scenes when switching projects
+      clearAllScenes();
+
+      // Add a small delay to ensure the context is ready
+      setTimeout(() => {
+        // Load scenes from database if available
+        if ((currentProject as any).scenes && (currentProject as any).scenes.length > 0) {
+          const scenes = (currentProject as any).scenes;
+          console.log('Loading scenes from database:', scenes);
+          console.log('Scene count:', scenes.length);
+
+          // Transform scenes to match ExportedScene format
+          const exportedScenes = scenes.map((scene: any) => {
+            console.log(`Scene ${scene.name} audio variations:`, scene.audioVariations);
+            return {
+              id: scene.id,
+              name: scene.name,
+              startTime: parseFloat(scene.start_time),
+              endTime: parseFloat(scene.end_time),
+              videoPath: scene.file_path || '',
+              sessionId: scene.session_id || '',
+              createdAt: scene.created_at || new Date().toISOString(),
+              audioVariations: scene.audioVariations || []
+            };
+          });
+
+          console.log('Adding exported scenes to context:', exportedScenes);
+          console.log('Exported scenes summary:', exportedScenes.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            videoPath: s.videoPath,
+            audioVariationsCount: s.audioVariations.length,
+            duration: s.endTime - s.startTime
+          })));
+          
+          addExportedScenes(exportedScenes);
+        } else {
+          console.log('No scenes found in project data');
+        }
+      }, 100); // Small delay to ensure context is ready
+    }
+
+    // Load video if available (only if not already loaded)
+    if (currentProject && (currentProject as any).videos && (currentProject as any).videos.length > 0) {
+      const video = (currentProject as any).videos[0];
+      console.log('Found video in project:', video);
+      console.log('  - Video ID:', video.id);
+      console.log('  - File name:', video.file_name);
+      console.log('  - Duration from DB:', video.duration);
+      console.log('  - Has thumbnails:', video.thumbnails?.length);
+
+      // Only load if this is a different video than what's already loaded
+      if (video.id !== loadedVideoIdRef.current) {
+        console.log('Loading video (new video ID)');
+        loadedVideoIdRef.current = video.id;
+
+        // Set video URL and create a File object for uploaded video state
+        if (video.file_path && video.file_name) {
+          // Fetch pre-signed URL from S3
+          console.log('Fetching pre-signed URL for S3 key:', video.file_path);
+          fetch('/api/presigned-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ s3Keys: [video.file_path] })
+          })
+            .then(res => res.json())
+            .then(data => {
+              const presignedUrl = data.urls[video.file_path];
+              if (presignedUrl) {
+                console.log('Setting video URL from pre-signed URL');
+                setVideoUrl(presignedUrl);
+              } else {
+                console.error('Failed to get pre-signed URL for video');
+              }
+            })
+            .catch(err => console.error('Error fetching pre-signed URL:', err));
+
+          setVideoId(video.id); // Set the video ID from database
+
+          // Create a mock File object to indicate video is loaded
+          const mockFile = new File([], video.file_name, { type: video.mime_type || 'video/mp4' });
+          console.log('Setting uploaded video (mock File)');
+          setUploadedVideo(mockFile);
+
+          // Set video duration from database
+          if (video.duration) {
+            console.log('Setting video duration from database:', video.duration);
+            setVideoDuration(video.duration);
+          }
+        }
+      } else {
+        console.log('Video already loaded, skipping');
+      }
+    }
+  }, [currentProject, isProjectLoaded]);
 
   // Handle window resize
   useEffect(() => {
@@ -48,11 +189,14 @@ function MotionPicturesContent() {
         const newWidth = e.clientX - containerRect.left;
         setSidebarWidth(Math.max(250, Math.min(500, newWidth)));
       } else if (isResizing === 'chatbox') {
-        const newWidth = containerRect.right - e.clientX;
+        const newWidth = e.clientX - containerRect.left - (sidebarCollapsed ? 62 : sidebarWidth);
         setChatboxWidth(Math.max(300, Math.min(1000, newWidth)));
       } else if (isResizing === 'vertical') {
         const newHeight = ((e.clientY - containerRect.top) / containerRect.height) * 100;
         setTopSectionHeight(Math.max(30, Math.min(70, newHeight)));
+      } else if (isResizing === 'timeline') {
+        const newHeight = ((e.clientY - containerRect.top) / containerRect.height) * 100;
+        setTopSectionHeight(Math.max(40, Math.min(80, newHeight)));
       }
     };
 
@@ -101,10 +245,34 @@ function MotionPicturesContent() {
       if (response.ok) {
         const result = await response.json();
         setUploadedVideo(file);
-        setVideoUrl(result.url);
+        setVideoId(result.videoId); // Store the video ID from database
+        loadedVideoIdRef.current = result.videoId; // Mark this video as loaded
         setUploadProgress(100);
         console.log('Video uploaded successfully:', result);
-        console.log('Video will be served from:', result.url);
+        console.log('Video ID:', result.videoId);
+        console.log('S3 Key:', result.s3Key);
+
+        // Fetch pre-signed URL for the uploaded video
+        try {
+          const urlResponse = await fetch('/api/presigned-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ s3Keys: [result.s3Key] })
+          });
+
+          if (urlResponse.ok) {
+            const urlData = await urlResponse.json();
+            const presignedUrl = urlData.urls[result.s3Key];
+            if (presignedUrl) {
+              console.log('Setting video URL from pre-signed URL:', presignedUrl);
+              setVideoUrl(presignedUrl);
+            } else {
+              console.error('Failed to get pre-signed URL');
+            }
+          }
+        } catch (urlError) {
+          console.error('Error fetching pre-signed URL:', urlError);
+        }
       } else {
         const errorText = await response.text();
         console.error('Upload failed:', response.status, errorText);
@@ -153,6 +321,16 @@ function MotionPicturesContent() {
       {currentProject && (
         <div className="absolute top-0 left-0 right-0 h-12 bg-black/80 backdrop-blur-sm border-b border-white/10 z-40 flex items-center px-4">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm transition-colors border border-white/20"
+              title="Go to Dashboard"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+              </svg>
+              Dashboard
+            </button>
             <div className="w-2 h-2 bg-orange rounded-full"></div>
             <span className="text-white font-medium">{currentProject.name}</span>
             {currentProject.description && (
@@ -161,14 +339,6 @@ function MotionPicturesContent() {
                 <span className="text-white/70 text-sm truncate max-w-96">{currentProject.description}</span>
               </>
             )}
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <button 
-              onClick={() => router.push('/motion-pictures/new')}
-              className="text-white/60 hover:text-white text-sm transition-colors"
-            >
-              Edit Project
-            </button>
           </div>
         </div>
       )}
@@ -248,22 +418,32 @@ function MotionPicturesContent() {
         <div 
           className="flex flex-col"
           style={{ height: `${topSectionHeight}%` }}
+          data-top-section
         >
           {/* Video Container - Fixed height leaving space for controls */}
           <div 
             className="w-full bg-black overflow-hidden"
-            style={{ height: 'calc(100% - 140px)' }} // Reserve 140px for MediaPlayer (60px) + VideoInfo (80px)
+            style={{ height: 'calc(100% - 141px)' }} // Reserve 141px for MediaPlayer (60px) + VideoInfo (80px) + divider (1px)
           >
             <div className="h-full relative" style={{ background: 'linear-gradient(180deg, rgba(13, 13, 13, 1) 42%, rgba(31, 31, 31, 1) 100%)' }}>
-              {uploadedVideo && videoUrl ? (
-                // Show uploaded video that fills the container completely
-                <video 
+              {uploadedVideo && videoUrl && videoUrl.startsWith('http') ? (
+                // Show uploaded video that fills the container completely (only when valid URL)
+                <video
+                  key={videoUrl}
                   ref={videoRef}
                   src={videoUrl}
                   className="w-full h-full object-contain"
                   controls={false}
                   preload="metadata"
                   playsInline
+                  onLoadedMetadata={(e) => {
+                    console.log('Video metadata loaded for revisited project');
+                    const video = e.currentTarget;
+                    if (video.duration && !videoDuration) {
+                      console.log('Setting video duration from loaded metadata:', video.duration);
+                      setVideoDuration(video.duration);
+                    }
+                  }}
                   onError={(e) => {
                     console.error('Video error details:', {
                       error: e,
@@ -346,13 +526,23 @@ function MotionPicturesContent() {
           
           {/* VideoInfo Component - Fixed height below MediaPlayer */}
           <div className="h-[80px] flex-shrink-0">
-            <VideoInfo 
-              videoFile={uploadedVideo} 
+            <VideoInfo
+              videoFile={uploadedVideo}
               videoRef={videoRef}
               currentTime={currentVideoTime}
               duration={videoDuration}
+              projectId={currentProject?.id}
+              videoId={videoId}
             />
           </div>
+          
+          {/* Timeline Resizable Divider */}
+          <div 
+            className={`h-1 bg-gradient-to-r from-transparent hover:bg-gradient-to-r hover:from-transparent hover:via-orange/50 hover:to-transparent cursor-row-resize flex-shrink-0 ${
+              isResizing === 'timeline' ? 'via-orange/70' : 'via-orange/30'
+            }`}
+            onMouseDown={() => setIsResizing('timeline')}
+          ></div>
         </div>
         
         {/* Horizontal Resizable Divider */}
@@ -373,10 +563,12 @@ function MotionPicturesContent() {
   );
 }
 
-export default function MotionPicturesClient() {
+export default function MotionPicturesClient({ projectId }: { projectId?: string }) {
   return (
     <SceneProvider>
-      <MotionPicturesContent />
+      <ChatProvider>
+        <MotionPicturesContent projectId={projectId} />
+      </ChatProvider>
     </SceneProvider>
   );
 }

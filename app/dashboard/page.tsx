@@ -5,8 +5,8 @@ import DashboardClient from './DashboardClient';
 export default function Dashboard() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <div className="text-white text-xl">Loading Dashboard...</div>
+      <div className="min-h-screen gradient-bg flex items-center justify-center" suppressHydrationWarning>
+        <div className="text-white text-xl" suppressHydrationWarning>Loading Dashboard...</div>
       </div>
     }>
       <DashboardClient />

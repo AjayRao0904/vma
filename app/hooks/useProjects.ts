@@ -1,4 +1,5 @@
-﻿import { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { logger } from '../lib/logger';
 
 export interface Project {
   id: string;
@@ -26,79 +27,102 @@ export const useProjects = () => {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
 
-  const fetchProjects = useCallback(async (searchQuery = '', page = 1) => {
+  const fetchProjects = useCallback(async (searchQuery: string = '', page: number = 1) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const mockProjects: Project[] = [
-        {
-          id: '1',
-          name: 'Sample Video Project',
-          description: 'A sample video editing project',
-          status: 'completed' as const,
-          type: 'video',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-      ];
-      
-      setProjects(mockProjects);
-      setPagination({
-        currentPage: page,
-        totalPages: 1,
-        totalItems: 1,
-        itemsPerPage: 10,
-        hasPrev: false,
-        hasNext: false,
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '10',
       });
+
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+
+      const response = await fetch(`/api/projects?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch projects: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      setProjects(data.projects || []);
+      setPagination(data.pagination || null);
     } catch (err) {
-      setError('Failed to fetch projects');
+      logger.error('Error fetching projects', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch projects');
       setProjects([]);
+      setPagination(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const createProject = useCallback(async (projectData: Partial<Project>): Promise<Project | null> => {
-    setLoading(true);
-    setError(null);
-    
+  const createProject = useCallback(async (projectData: Partial<Project>) => {
     try {
-      // Mock implementation - create a new project
-      const newProject: Project = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: projectData.name || 'Untitled Project',
-        description: projectData.description || '',
-        status: 'draft',
-        type: projectData.type || 'motion-pictures',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        userId: 'mock-user-id'
-      };
-      
-      // Add to projects list
-      setProjects(prev => [newProject, ...prev]);
-      
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(projectData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create project: ${response.statusText}`);
+      }
+
+      const newProject = await response.json();
       return newProject;
     } catch (err) {
-      console.error('Error creating project:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create project');
-      return null;
-    } finally {
-      setLoading(false);
+      logger.error('Error creating project', err);
+      throw err;
     }
   }, []);
 
-  const updateProject = useCallback(async (id: string, projectData: Partial<Project>): Promise<Project | null> => {
-    // Mock implementation
-    return null;
+  const updateProject = useCallback(async (id: string, projectData: Partial<Project>) => {
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, ...projectData }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update project: ${response.statusText}`);
+      }
+
+      const updatedProject = await response.json();
+      return updatedProject;
+    } catch (err) {
+      logger.error('Error updating project', err);
+      throw err;
+    }
   }, []);
 
-  const deleteProject = useCallback(async (id: string): Promise<boolean> => {
-    // Mock implementation
-    return false;
+  const deleteProject = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/projects?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete project: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      return result.success;
+    } catch (err) {
+      logger.error('Error deleting project', err);
+      return false;
+    }
   }, []);
+
   const refreshProjects = useCallback(async () => {
     await fetchProjects('', 1);
   }, [fetchProjects]);

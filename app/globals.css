@@ -4,7 +4,8 @@
   --background: #000000;
   --foreground: #ffffff;
   --orange: #D75C35;
-  --orange-light: #FF8A65;
+  --orange-dark: #88282E;
+  --orange-light: #D75C35;
   --text-secondary: rgba(255, 255, 255, 0.7);
 }
 
@@ -19,7 +20,7 @@ body {
 }
 
 .orange-gradient {
-  background: linear-gradient(135deg, #D75C35 0%, #FF8A65 100%);
+  background: linear-gradient(135deg, #88282E 0%, #D75C35 100%);
 }
 
 .black-to-white-gradient {
@@ -27,7 +28,7 @@ body {
 }
 
 .text-orange-light {
-  color: #FF8A65;
+  color: #D75C35;
 }
 
 .text-secondary {
@@ -37,7 +38,7 @@ body {
 .custom-button {
   background: #1F1F1F;
   border: 1px solid;
-  border-image: conic-gradient(from 90deg at 35% 50%, rgba(215, 92, 53, 1) 0%, rgba(113, 48, 28, 0) 100%) 1;
+  border-image: conic-gradient(from 90deg at 35% 50%, rgba(215, 92, 53, 1) 0%, rgba(136, 40, 46, 0) 100%) 1;
   filter: blur(10px);
 }
 

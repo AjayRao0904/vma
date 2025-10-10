@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { logger } from '../lib/logger';
 
 export interface ProjectData {
   id: string;
@@ -14,6 +15,7 @@ interface ProjectContextType {
   setCurrentProject: (project: ProjectData | null) => void;
   clearProject: () => void;
   isProjectLoaded: boolean;
+  loadProjectById: (id: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -31,7 +33,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setCurrentProjectState(projectData);
       }
     } catch (error) {
-      console.error('Error loading project from localStorage:', error);
+      logger.error('Error loading project from localStorage', error);
     } finally {
       setIsProjectLoaded(true);
     }
@@ -46,7 +48,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       }
       setCurrentProjectState(project);
     } catch (error) {
-      console.error('Error saving project to localStorage:', error);
+      logger.error('Error saving project to localStorage', error);
     }
   };
 
@@ -55,16 +57,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('currentProject');
       setCurrentProjectState(null);
     } catch (error) {
-      console.error('Error clearing project from localStorage:', error);
+      logger.error('Error clearing project from localStorage', error);
     }
   };
+
+  const loadProjectById = useCallback(async (id: string) => {
+    try {
+      logger.info('Fetching project from API', { id });
+      const response = await fetch(`/api/projects/${id}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load project: ${response.statusText}`);
+      }
+
+      const project = await response.json();
+      logger.info('Project loaded', { project });
+      setCurrentProject(project);
+    } catch (error) {
+      logger.error('Error loading project by ID', error);
+      // Optionally show error to user
+    }
+  }, [setCurrentProject]);
 
   return (
     <ProjectContext.Provider value={{
       currentProject,
       setCurrentProject,
       clearProject,
-      isProjectLoaded
+      isProjectLoaded,
+      loadProjectById
     }}>
       {children}
     </ProjectContext.Provider>

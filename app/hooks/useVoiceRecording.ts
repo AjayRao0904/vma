@@ -1,4 +1,5 @@
 ﻿import { useState, useCallback, useRef, useEffect } from 'react';
+import { logger } from '../lib/logger';
 
 interface UseVoiceRecordingReturn {
   isRecording: boolean;
@@ -70,7 +71,7 @@ export const useVoiceRecording = (): UseVoiceRecordingReturn => {
       }, 1000);
 
     } catch (err) {
-      console.error('Error starting recording:', err);
+      logger.error('Error starting recording', err);
       setError(err instanceof Error ? err.message : 'Failed to start recording');
     }
   }, []);

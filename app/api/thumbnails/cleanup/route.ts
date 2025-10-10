@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, unlink } from 'fs/promises';
 import path from 'path';
+import { logger } from '../../../lib/logger';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -19,15 +20,17 @@ export async function DELETE(req: NextRequest) {
         await unlink(path.join(thumbnailsDir, file));
       }
       await require('fs').promises.rmdir(thumbnailsDir);
-      
+
       return NextResponse.json({ message: 'Thumbnails cleaned up successfully' });
     } catch (error) {
-      console.warn('Cleanup error:', error);
+      logger.warn('Cleanup completed with warnings', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return NextResponse.json({ message: 'Cleanup completed with warnings' });
     }
 
   } catch (error) {
-    console.error('Cleanup error:', error);
+    logger.error('Cleanup error', error);
     return NextResponse.json(
       { error: 'Failed to cleanup thumbnails' },
       { status: 500 }

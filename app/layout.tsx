@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "./components/AuthProvider";
 import { ProjectProvider } from "./contexts/ProjectContext";
+import HydrationFixProvider from "./components/HydrationFixProvider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -26,11 +27,13 @@ export default function RootLayout({
         className={`${poppins.variable} antialiased`}
         suppressHydrationWarning={true}
       >
-        <AuthProvider>
-          <ProjectProvider>
-            {children}
-          </ProjectProvider>
-        </AuthProvider>
+        <HydrationFixProvider>
+          <AuthProvider>
+            <ProjectProvider>
+              {children}
+            </ProjectProvider>
+          </AuthProvider>
+        </HydrationFixProvider>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { logger } from '../lib/logger';
 
 const TEMP_VIDEOS_DIR = 'C:\\tempvideos';
 
@@ -8,7 +9,7 @@ export async function ensureTempVideosDir() {
   try {
     await fs.mkdir(TEMP_VIDEOS_DIR, { recursive: true });
   } catch (error) {
-    console.error('Error creating temp videos directory:', error);
+    logger.error('Error creating temp videos directory', error);
   }
 }
 
@@ -24,11 +25,11 @@ export async function saveVideoToLocal(file: File, projectId?: string): Promise<
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     await fs.writeFile(filePath, buffer);
-    
-    console.log('Video saved to:', filePath);
+
+    logger.info('Video saved to', { filePath });
     return filePath;
   } catch (error) {
-    console.error('Error saving video to local storage:', error);
+    logger.error('Error saving video to local storage', error);
     throw error;
   }
 }
@@ -50,7 +51,7 @@ export async function listTempVideos(): Promise<string[]> {
       file.endsWith('.webm')
     );
   } catch (error) {
-    console.error('Error listing temp videos:', error);
+    logger.error('Error listing temp videos', error);
     return [];
   }
 }
@@ -60,10 +61,10 @@ export async function deleteVideo(fileName: string): Promise<boolean> {
   try {
     const filePath = path.join(TEMP_VIDEOS_DIR, fileName);
     await fs.unlink(filePath);
-    console.log('Video deleted:', filePath);
+    logger.info('Video deleted', { filePath });
     return true;
   } catch (error) {
-    console.error('Error deleting video:', error);
+    logger.error('Error deleting video', error);
     return false;
   }
 }

@@ -9,11 +9,12 @@ module.exports = {
     extend: {
       colors: {
         'orange': '#D75C35',        // Primary orange
-        'orange-light': '#FF8A65',  // Lighter orange variant
+        'orange-dark': '#88282E',   // Darker orange variant for gradient
+        'orange-light': '#D75C35',  // Lighter orange variant (updated)
         'dark': '#000000',          // Pure black
         'background': '#000000',    // Black background
         'primary': '#D75C35',       // Primary orange
-        'secondary': '#FF8A65',     // Secondary orange
+        'secondary': '#88282E',     // Secondary orange (darker variant)
         'black': '#000000',         // Pure black
       },
       fontFamily: {
