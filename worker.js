@@ -1,35 +1,41 @@
 // worker.js - SQS Worker for processing video/audio jobs
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, ChangeMessageVisibilityCommand } = require('@aws-sdk/client-sqs');
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
 
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'us-east-1' });
-const secretsClient = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const cloudwatchClient = new CloudWatchClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-let config = {};
+// Load configuration from environment variables (.env.production)
+const config = {
+  SQS_QUEUE_URL: process.env.SQS_QUEUE_URL,
+  S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
+  DATABASE_URL: process.env.DATABASE_URL,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN,
+  AWS_REGION: process.env.AWS_REGION || 'us-east-1'
+};
 
-// Load configuration from Secrets Manager
+// Validate required environment variables
 async function loadSecrets() {
   try {
-    console.log('Loading secrets from Secrets Manager...');
-    const response = await secretsClient.send(
-      new GetSecretValueCommand({ SecretId: 'vma/production/env' })
-    );
-    config = JSON.parse(response.SecretString);
+    console.log('Loading configuration from environment variables...');
 
-    // Set environment variables from secrets
-    Object.keys(config).forEach(key => {
-      process.env[key] = config[key];
-    });
+    // Validate required vars
+    const required = ['SQS_QUEUE_URL', 'S3_BUCKET_NAME', 'DATABASE_URL'];
+    const missing = required.filter(key => !config[key]);
 
-    console.log('✓ Secrets loaded successfully');
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    }
+
+    console.log('✓ Configuration loaded successfully');
     console.log(`✓ Queue URL: ${config.SQS_QUEUE_URL}`);
     console.log(`✓ S3 Bucket: ${config.S3_BUCKET_NAME}`);
+    console.log(`✓ Region: ${config.AWS_REGION}`);
   } catch (error) {
-    console.error('✗ Error loading secrets:', error);
+    console.error('✗ Error loading configuration:', error);
     process.exit(1);
   }
 }
