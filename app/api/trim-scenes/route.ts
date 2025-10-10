@@ -9,29 +9,7 @@ import db from '../../lib/db';
 import { uploadToS3, generateSceneKey } from '../../lib/s3';
 import { logger } from '../../lib/logger';
 import { createUserTempDir, getUserTempSubDir, getUserTempFilePath } from '../../lib/tempStorage';
-
-// Get the correct ffmpeg path with proper resolution
-let ffmpegPath: string;
-try {
-  const ffmpegStatic = require('ffmpeg-static');
-  
-  // Construct the correct absolute path since Next.js/Turbopack corrupts the path
-  const projectRoot = process.cwd();
-  const correctPath = path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
-  
-  // Use the path that actually exists
-  ffmpegPath = existsSync(correctPath) ? correctPath : ffmpegStatic;
-
-  if (!existsSync(ffmpegPath)) {
-    throw new Error(`FFmpeg binary not found at: ${ffmpegPath}`);
-  }
-
-  logger.info('Setting FFmpeg path', { ffmpegPath });
-  ffmpeg.setFfmpegPath(ffmpegPath);
-} catch (error) {
-  logger.error('Failed to load ffmpeg-static', error);
-  throw new Error('FFmpeg not available');
-}
+import '../../lib/ffmpeg-config'; // Auto-configure FFmpeg
 
 interface SceneSelection {
   id: string;

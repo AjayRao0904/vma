@@ -10,36 +10,7 @@ import db from '../../lib/db';
 import { uploadToS3, generateThumbnailKey, getPresignedUrl } from '../../lib/s3';
 import { getServerSession } from 'next-auth';
 import { logger } from '../../lib/logger';
-
-// Get the correct ffmpeg path with proper resolution
-let ffmpegPath: string;
-try {
-  const ffmpegStatic = require('ffmpeg-static');
-
-  // Construct the correct absolute path since Next.js/Turbopack corrupts the path
-  const projectRoot = process.cwd();
-  const correctPath = path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
-
-  logger.info('FFmpeg path configuration', {
-    originalPath: ffmpegStatic,
-    constructedPath: correctPath,
-    cwd: projectRoot
-  });
-
-  // Use the path that actually exists
-  ffmpegPath = existsSync(correctPath) ? correctPath : ffmpegStatic;
-
-  // Verify the file exists
-  if (!existsSync(ffmpegPath)) {
-    throw new Error(`FFmpeg binary not found at: ${ffmpegPath}`);
-  }
-
-  logger.info('FFmpeg path set successfully', { ffmpegPath });
-  ffmpeg.setFfmpegPath(ffmpegPath);
-} catch (error) {
-  logger.error('Failed to load ffmpeg-static', error);
-  throw new Error('FFmpeg not available');
-}
+import '../../lib/ffmpeg-config'; // Auto-configure FFmpeg
 
 export async function POST(req: NextRequest) {
   try {

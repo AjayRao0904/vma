@@ -16,21 +16,8 @@ import {
   getUserTempFilePath,
 } from '../../lib/tempStorage';
 
-// Get the correct ffmpeg path
-let ffmpegPath: string;
-try {
-  const ffmpegStatic = require('ffmpeg-static');
-  const projectRoot = process.cwd();
-  const correctPath = path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
-  ffmpegPath = existsSync(correctPath) ? correctPath : ffmpegStatic;
-  if (!existsSync(ffmpegPath)) {
-    throw new Error(`FFmpeg binary not found at: ${ffmpegPath}`);
-  }
-  ffmpeg.setFfmpegPath(ffmpegPath);
-} catch (error) {
-  logger.error('Failed to load ffmpeg-static', error);
-  throw new Error('FFmpeg not available');
-}
+// Auto-configure FFmpeg based on platform
+import '../../lib/ffmpeg-config';
 
 // Initialize Replicate
 const replicate = new Replicate({
