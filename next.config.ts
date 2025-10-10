@@ -7,16 +7,21 @@ const nextConfig: NextConfig = {
   },
 
   // Production optimizations
-  swcMinify: true,
   reactStrictMode: true,
   poweredByHeader: false,
 
   // Image optimization
   images: {
-    domains: [
-      's3.amazonaws.com',
-      process.env.S3_BUCKET_NAME ? `${process.env.S3_BUCKET_NAME}.s3.amazonaws.com` : '',
-    ].filter(Boolean),
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 's3.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.s3.amazonaws.com',
+      },
+    ],
     formats: ['image/avif', 'image/webp'],
   },
 
@@ -53,13 +58,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-
-  // Turbopack configuration (for development)
-  experimental: {
-    turbo: {
-      root: process.cwd(),
-    },
   },
 };
 
