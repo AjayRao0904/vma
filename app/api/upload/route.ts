@@ -76,13 +76,8 @@ export async function POST(request: NextRequest) {
     await uploadToS3(buffer, s3Key, file.type);
     console.log('✅ S3 upload complete!');
 
-    // Also save to temp directory for FFmpeg processing (thumbnails/scenes)
-    console.log('📁 Saving to temp directory...');
-    const userTempDir = await createUserTempDir(user.id);
-    const projectTempDir = await getUserTempSubDir(userTempDir, `project-${projectId}`);
-    const tempFilePath = getUserTempFilePath(projectTempDir, file.name);
-    await writeFile(tempFilePath, buffer);
-    console.log('✅ Saved to temp:', tempFilePath);
+    // Skip temp directory for now - testing
+    console.log('⚠️ Skipping temp directory save for debugging...');
 
     // Save video metadata to database (file_path contains S3 key)
     console.log('💾 Saving video metadata to database...');

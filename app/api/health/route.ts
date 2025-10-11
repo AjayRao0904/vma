@@ -3,6 +3,7 @@ import { logger } from '../../lib/logger';
 
 // Health check endpoint for load balancer
 export async function GET() {
+  console.log('❤️ HEALTH CHECK CALLED - CONSOLE LOG TEST');
   try {
     logger.info('Health check requested');
 
