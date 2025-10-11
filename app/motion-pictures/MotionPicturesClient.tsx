@@ -229,13 +229,18 @@ function MotionPicturesContent({ projectId }: MotionPicturesContentProps) {
   };
 
   const uploadVideoToServer = async (file: File) => {
+    if (!currentProject?.id) {
+      alert('Please select or create a project first before uploading videos');
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(0);
 
     try {
       const formData = new FormData();
       formData.append('video', file);
-      formData.append('projectId', currentProject?.id || 'temp');
+      formData.append('projectId', currentProject.id);
 
       const response = await fetch('/api/upload', {
         method: 'POST',
