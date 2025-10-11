@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Increase body size limit for video uploads (500MB)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '500mb',
+    },
+  },
+
   // Disable ESLint during production builds (fix linting issues later)
   eslint: {
     ignoreDuringBuilds: true,
