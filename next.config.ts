@@ -18,9 +18,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Remove console.logs in production
+  // Keep console.logs for debugging (disable removeConsole)
   compiler: {
-    removeConsole: process.env.NODE_ENV === "production",
+    removeConsole: false,
   },
 
   // Production optimizations
