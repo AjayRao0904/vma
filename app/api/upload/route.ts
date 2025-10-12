@@ -84,18 +84,26 @@ export async function POST(request: NextRequest) {
     // Also save to temp directory for FFmpeg processing (thumbnails/scenes)
     // Use the path structure that thumbnail generation expects
     console.log('📁 Saving to temp directory...');
+    console.log('👤 User ID for temp path:', user.id);
+    console.log('📁 Project ID for temp path:', projectId);
     try {
       const { tmpdir } = await import('os');
       const { mkdir } = await import('fs/promises');
 
       const tempVideoDir = path.join(tmpdir(), 'aalap-videos', user.id, projectId);
+      console.log('📂 Creating temp directory:', tempVideoDir);
       await mkdir(tempVideoDir, { recursive: true });
+      console.log('✅ Temp directory created');
 
       const tempFilePath = path.join(tempVideoDir, file.name);
+      console.log('💾 Writing file to:', tempFilePath);
       await writeFile(tempFilePath, buffer);
       console.log('✅ Saved to temp:', tempFilePath);
+      console.log('📏 File size written:', buffer.length);
     } catch (tempError) {
       console.error('⚠️ Temp directory save failed (non-critical):', tempError);
+      console.error('Error details:', tempError instanceof Error ? tempError.message : tempError);
+      console.error('Error stack:', tempError instanceof Error ? tempError.stack : 'No stack');
       // Continue anyway - temp storage is not critical
     }
 
