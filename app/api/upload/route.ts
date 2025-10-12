@@ -82,11 +82,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Also save to temp directory for FFmpeg processing (thumbnails/scenes)
+    // Use the path structure that thumbnail generation expects
     console.log('📁 Saving to temp directory...');
     try {
-      const userTempDir = await createUserTempDir(user.id);
-      const projectTempDir = await getUserTempSubDir(userTempDir, `project-${projectId}`);
-      const tempFilePath = getUserTempFilePath(projectTempDir, file.name);
+      const { tmpdir } = await import('os');
+      const { mkdir } = await import('fs/promises');
+
+      const tempVideoDir = path.join(tmpdir(), 'aalap-videos', user.id, projectId);
+      await mkdir(tempVideoDir, { recursive: true });
+
+      const tempFilePath = path.join(tempVideoDir, file.name);
       await writeFile(tempFilePath, buffer);
       console.log('✅ Saved to temp:', tempFilePath);
     } catch (tempError) {
