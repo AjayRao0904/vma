@@ -5,22 +5,58 @@ import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import db from '../../lib/db';
 import { uploadToS3, generateThumbnailKey, getPresignedUrl } from '../../lib/s3';
 import { getServerSession } from 'next-auth';
 import { logger } from '../../lib/logger';
 import '../../lib/ffmpeg-config'; // Auto-configure FFmpeg
 
-export async function POST(req: NextRequest) {
+// Get FFmpeg path
+function getFfmpegPath(): string | null {
   try {
+    if (process.platform === 'linux') {
+      const systemFfmpegPath = execSync('which ffmpeg').toString().trim();
+      if (systemFfmpegPath && existsSync(systemFfmpegPath)) {
+        return systemFfmpegPath;
+      }
+      const commonPaths = ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'];
+      for (const ffmpegPath of commonPaths) {
+        if (existsSync(ffmpegPath)) {
+          return ffmpegPath;
+        }
+      }
+    }
+    try {
+      const ffmpegStatic = require('ffmpeg-static');
+      if (ffmpegStatic && existsSync(ffmpegStatic)) {
+        return ffmpegStatic;
+      }
+    } catch (error) {
+      console.warn('ffmpeg-static not available:', error);
+    }
+  } catch (error) {
+    console.error('Failed to get FFmpeg path:', error);
+  }
+  return null;
+}
+
+const ffmpegPath = getFfmpegPath();
+
+export async function POST(req: NextRequest) {
+  console.log('🎨 Thumbnail generation request received');
+  try {
+    console.log('🔧 FFmpeg path:', ffmpegPath);
+
     const session = await getServerSession();
     if (!session?.user?.email) {
+      console.log('❌ Unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await db.findUserByEmail(session.user.email);
     if (!user) {
+      console.log('❌ User not found');
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -29,6 +65,8 @@ export async function POST(req: NextRequest) {
     const videoFileName = formData.get('videoFileName') as string;
     const videoId = formData.get('videoId') as string;
     const projectId = formData.get('projectId') as string;
+
+    console.log('📝 Thumbnail request params:', { videoFileName, videoId, projectId, hasFile: !!file });
 
     // Get project and user names for S3 structure
     let project = null;
@@ -106,24 +144,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No video file or filename provided' }, { status: 400 });
     }
 
+    console.log('📂 Thumbnail generation paths:', { videoPath, thumbnailsDir });
     logger.info('Thumbnail generation paths', {
       videoPath,
       thumbnailsDir
     });
 
     // Get video duration using ffmpeg
+    console.log('⏱️ Getting video duration...');
     const duration = await getVideoDuration(videoPath);
+    console.log('✅ Video duration:', duration);
     logger.info('Video duration detected', { duration });
 
     // Use scene detection to find interesting frames
+    console.log('🔍 Detecting scenes...');
     const sceneTimestamps = await detectScenes(videoPath, duration);
+    console.log('✅ Scene timestamps:', sceneTimestamps);
     logger.info('Scene timestamps detected', {
       count: sceneTimestamps.length,
       timestamps: sceneTimestamps
     });
 
     // Generate thumbnails at scene change points
+    console.log('🖼️ Generating thumbnails...');
     const localThumbnailPaths = await generateThumbnails(videoPath, thumbnailsDir, sceneTimestamps, sessionId);
+    console.log('✅ Local thumbnails generated:', localThumbnailPaths.length);
 
     logger.info('Thumbnails generated locally', {
       count: localThumbnailPaths.length
