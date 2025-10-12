@@ -113,23 +113,63 @@ export async function POST(req: NextRequest) {
     if (videoFileName) {
       // Look for video in project-specific temp directory
       if (!projectId) {
+        console.log('❌ No project ID provided');
         return NextResponse.json({
           error: 'Project ID required for thumbnail generation'
         }, { status: 400 });
       }
 
-      logger.info('Using existing video', { videoFileName });
+      console.log('📹 Using existing video:', videoFileName);
+      console.log('👤 User ID:', user.id);
+      console.log('📁 Project ID:', projectId);
+
       const tempVideoDir = path.join(tmpdir(), 'aalap-videos', user.id, projectId);
       videoPath = path.join(tempVideoDir, videoFileName);
+
+      console.log('🔍 Looking for video at:', videoPath);
+      console.log('📂 Temp directory:', tempVideoDir);
+      console.log('🗂️ Video exists?:', existsSync(videoPath));
+
+      // List what's actually in the temp directory
+      try {
+        const fs = require('fs');
+        if (fs.existsSync(tempVideoDir)) {
+          const files = fs.readdirSync(tempVideoDir);
+          console.log('📋 Files in temp directory:', files);
+        } else {
+          console.log('❌ Temp directory does not exist:', tempVideoDir);
+
+          // Check parent directories
+          const userDir = path.join(tmpdir(), 'aalap-videos', user.id);
+          if (fs.existsSync(userDir)) {
+            const userFiles = fs.readdirSync(userDir);
+            console.log('📋 Files in user directory:', userFiles);
+          } else {
+            console.log('❌ User directory does not exist:', userDir);
+
+            const aalapDir = path.join(tmpdir(), 'aalap-videos');
+            if (fs.existsSync(aalapDir)) {
+              const aalapFiles = fs.readdirSync(aalapDir);
+              console.log('📋 Files in aalap-videos directory:', aalapFiles);
+            } else {
+              console.log('❌ aalap-videos directory does not exist');
+            }
+          }
+        }
+      } catch (listError) {
+        console.error('Error listing directory:', listError);
+      }
 
       logger.info('Looking for video at path', { videoPath });
 
       if (!existsSync(videoPath)) {
+        console.log('❌ Video file NOT FOUND at:', videoPath);
         return NextResponse.json({
           error: 'Video file not found in temp storage',
           details: `Please re-upload the video. Looking for: ${videoPath}`
         }, { status: 404 });
       }
+      console.log('✅ Video file found!');
       shouldCleanup = false; // Don't delete the original video
     } else if (file) {
       // Handle uploaded file
