@@ -25,6 +25,12 @@ export async function uploadToS3(
   key: string,
   contentType: string
 ): Promise<string> {
+  console.log('📦 uploadToS3 called');
+  console.log('   Bucket:', BUCKET_NAME);
+  console.log('   Key:', key);
+  console.log('   ContentType:', contentType);
+  console.log('   File size:', file.length);
+
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
@@ -32,9 +38,16 @@ export async function uploadToS3(
     ContentType: contentType,
   });
 
-  await s3Client.send(command);
-  logger.info('Uploaded to S3', { key });
-  return key;
+  console.log('🚀 Sending S3 PutObject command...');
+  try {
+    const result = await s3Client.send(command);
+    console.log('✅ S3 upload SUCCESS!', result);
+    logger.info('Uploaded to S3', { key });
+    return key;
+  } catch (error) {
+    console.error('❌ S3 upload FAILED:', error);
+    throw error;
+  }
 }
 
 /**
