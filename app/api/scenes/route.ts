@@ -61,6 +61,10 @@ export async function POST(request: NextRequest) {
     const sceneFileName = `scene_${Date.now()}_${start_time}s_to_${end_time}s.mp4`;
     const sceneOutputPath = path.join(tempVideoDir, sceneFileName);
 
+    // Generate session ID for scene tracking (needed for both success and failure paths)
+    const userName = session.user.name || session.user.email?.split('@')[0] || 'user';
+    const sessionId = `session_${Date.now()}`;
+
     try {
       // Use FFmpeg to cut the video
       logger.info('Cutting video with FFmpeg', {
@@ -96,8 +100,6 @@ export async function POST(request: NextRequest) {
       logger.info('Scene video file read', { size: sceneBuffer.length });
 
       // Generate S3 key for scene
-      const userName = session.user.name || session.user.email?.split('@')[0] || 'user';
-      const sessionId = `session_${Date.now()}`;
       const s3Key = generateSceneKey(
         user.id,
         project_id,
@@ -147,7 +149,8 @@ export async function POST(request: NextRequest) {
         project_id,
         name,
         start_time: parseFloat(start_time),
-        end_time: parseFloat(end_time)
+        end_time: parseFloat(end_time),
+        session_id: sessionId
       });
 
       logger.warn('Scene created without cut video due to FFmpeg error', {
