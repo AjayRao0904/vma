@@ -10,14 +10,41 @@ import { execSync } from 'child_process';
  */
 export function configureFfmpeg(): void {
   try {
-    // Check if we're on Linux (production)
+    // Try ffmpeg-static first (works on all platforms)
+    try {
+      let ffmpegStatic = require('ffmpeg-static');
+      console.log('🔍 ffmpeg-static raw path:', ffmpegStatic);
+
+      // Next.js/Turbopack may replace the path with a placeholder
+      // If so, construct the real path manually
+      if (ffmpegStatic.includes('\\ROOT\\') || ffmpegStatic.includes('/ROOT/')) {
+        const resolvedPath = path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
+        console.log('🔧 Fixing Next.js path transformation:', resolvedPath);
+        ffmpegStatic = resolvedPath;
+      }
+
+      console.log('🔍 Final path:', ffmpegStatic);
+      console.log('🔍 File exists:', existsSync(ffmpegStatic));
+
+      if (ffmpegStatic && existsSync(ffmpegStatic)) {
+        ffmpeg.setFfmpegPath(ffmpegStatic);
+        console.log(`✅ Using ffmpeg-static: ${ffmpegStatic}`);
+        return;
+      } else {
+        console.log('⚠️ ffmpeg-static found but file does not exist');
+      }
+    } catch (error: any) {
+      console.log('❌ ffmpeg-static error:', error.message);
+      console.log('   Trying system FFmpeg...');
+    }
+
+    // Check if we're on Linux (production) - try system FFmpeg
     if (process.platform === 'linux') {
-      // Try to find system FFmpeg
       try {
         const systemFfmpegPath = execSync('which ffmpeg').toString().trim();
         if (systemFfmpegPath && existsSync(systemFfmpegPath)) {
           ffmpeg.setFfmpegPath(systemFfmpegPath);
-          console.log(`Using system FFmpeg: ${systemFfmpegPath}`);
+          console.log(`✅ Using system FFmpeg: ${systemFfmpegPath}`);
           return;
         }
       } catch {
@@ -26,29 +53,30 @@ export function configureFfmpeg(): void {
         for (const ffmpegPath of commonPaths) {
           if (existsSync(ffmpegPath)) {
             ffmpeg.setFfmpegPath(ffmpegPath);
-            console.log(`Using system FFmpeg: ${ffmpegPath}`);
+            console.log(`✅ Using system FFmpeg: ${ffmpegPath}`);
             return;
           }
         }
       }
     }
 
-    // Fallback to ffmpeg-static for Windows/Mac development
-    try {
-      const ffmpegStatic = require('ffmpeg-static');
-      if (ffmpegStatic && existsSync(ffmpegStatic)) {
-        ffmpeg.setFfmpegPath(ffmpegStatic);
-        console.log(`Using ffmpeg-static: ${ffmpegStatic}`);
-        return;
+    // Windows - try 'where' command
+    if (process.platform === 'win32') {
+      try {
+        const systemFfmpegPath = execSync('where ffmpeg').toString().trim().split('\n')[0];
+        if (systemFfmpegPath && existsSync(systemFfmpegPath)) {
+          ffmpeg.setFfmpegPath(systemFfmpegPath);
+          console.log(`✅ Using system FFmpeg: ${systemFfmpegPath}`);
+          return;
+        }
+      } catch {
+        // where command failed
       }
-    } catch (error) {
-      console.warn('ffmpeg-static not available:', error);
     }
 
-    throw new Error('FFmpeg not found. Please install FFmpeg or ffmpeg-static package.');
+    console.warn('⚠️ FFmpeg not found. Video cutting will not work.');
   } catch (error) {
-    console.error('Failed to configure FFmpeg:', error);
-    throw error;
+    console.error('❌ Failed to configure FFmpeg:', error);
   }
 }
 

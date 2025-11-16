@@ -35,10 +35,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Delete audio variations first (foreign key constraint)
-    await db.deleteAudioVariationsBySceneId(sceneId);
-
     // Delete the scene from database
+    // CASCADE will automatically delete:
+    // - audio_variations (scene_id FK)
+    // - scene_analysis (scene_id FK)
+    // - music_prompts (scene_id FK)
+    // - chat_messages (scene_id FK)
     const deletedScene = await db.deleteScene(sceneId);
 
     // Try to delete the scene video file from file system

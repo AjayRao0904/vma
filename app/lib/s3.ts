@@ -46,6 +46,7 @@ export async function uploadToS3(
     return key;
   } catch (error) {
     console.error('❌ S3 upload FAILED:', error);
+    logger.error('S3 upload failed', { error, key });
     throw error;
   }
 }

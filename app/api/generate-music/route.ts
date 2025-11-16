@@ -24,10 +24,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { sceneId, prompt } = body;
+    const { sceneId, prompt, bpm } = body;
 
     if (!sceneId || !prompt) {
       return NextResponse.json({ error: 'Scene ID and prompt required' }, { status: 400 });
+    }
+
+    // Validate BPM if provided
+    if (bpm !== undefined && (isNaN(bpm) || bpm < 40 || bpm > 200)) {
+      return NextResponse.json({ error: 'BPM must be between 40 and 200' }, { status: 400 });
     }
 
     // Get scene from database
@@ -36,14 +41,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
     }
 
-    logger.info('Generating music for scene', { sceneName: scene.name, sceneId, prompt });
+    logger.info('Generating music for scene', { sceneName: scene.name, sceneId, prompt, bpm });
 
     // Calculate scene duration in milliseconds
     const sceneDurationRaw = (parseFloat(scene.end_time) - parseFloat(scene.start_time)) * 1000;
     // ElevenLabs requires minimum 10 seconds (10000ms)
     const sceneDuration = Math.max(10000, Math.round(sceneDurationRaw));
 
-    logger.info('Scene and music duration', { sceneDurationRawMs: sceneDurationRaw, musicDurationMs: sceneDuration });
+    logger.info('Scene and music duration', { sceneDurationRawMs: sceneDurationRaw, musicDurationMs: sceneDuration, bpm });
 
     // Validate API key
     if (!process.env.ELEVENLABS_API_KEY) {
@@ -54,10 +59,16 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const requestBody = {
+    // Build request body with optional BPM
+    const requestBody: any = {
       prompt: prompt,
       music_length_ms: sceneDuration
     };
+
+    // Add BPM to prompt if provided (ElevenLabs responds to BPM in prompt)
+    if (bpm) {
+      requestBody.prompt = `${prompt}. ${bpm} BPM.`;
+    }
 
     logger.info('ElevenLabs request', {
       endpoint: 'https://api.elevenlabs.io/v1/music/compose',
@@ -133,13 +144,14 @@ export async function POST(request: NextRequest) {
 
     logger.info('Audio uploaded to S3', { s3Key });
 
-    // Save to database
+    // Save to database with BPM
     const audioRecord = await db.createAudioVariation({
       scene_id: sceneId,
       title: `Generated Music - ${new Date().toLocaleTimeString()}`,
       file_path: s3Key,
       duration: (sceneDuration / 1000).toFixed(2), // Convert to seconds
-      prompt: prompt
+      prompt: prompt,
+      bpm: bpm || null
     });
 
     logger.info('Audio record created in database', { audioRecordId: audioRecord.id });

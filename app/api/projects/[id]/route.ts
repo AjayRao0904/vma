@@ -3,6 +3,49 @@ import { getServerSession } from "next-auth";
 import db from "../../../lib/db";
 import { logger } from "../../../lib/logger";
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession();
+
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id: projectId } = await params;
+    const body = await request.json();
+
+    // Get project from database
+    const project = await db.getProjectById(projectId);
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    // Verify project belongs to user
+    const user = await db.findUserByEmail(session.user.email);
+    if (project.user_id !== user?.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Update project_mode if provided
+    if (body.project_mode) {
+      await db.updateProjectMode(projectId, body.project_mode);
+      logger.info('Project mode updated', { projectId, mode: body.project_mode });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    logger.error('Failed to update project', error);
+    return NextResponse.json(
+      { error: 'Failed to update project' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,21 +74,6 @@ export async function GET(
 
     // Get videos for this project
     const videos = await db.getVideosByProjectId(projectId);
-
-    // Get thumbnails for each video
-    const videosWithThumbnails = await Promise.all(
-      videos.map(async (video) => {
-        const thumbnails = await db.getThumbnailsByVideoId(video.id);
-        return {
-          ...video,
-          thumbnails: thumbnails.map(t => ({
-            id: t.id,
-            file_path: t.file_path,
-            timestamp: t.timestamp
-          }))
-        };
-      })
-    );
 
     // Get scenes for this project
     const scenes = await db.getScenesByProjectId(projectId);
@@ -90,7 +118,7 @@ export async function GET(
     // Return complete project data
     return NextResponse.json({
       ...project,
-      videos: videosWithThumbnails,
+      videos,
       scenes: scenesWithAudio
     });
   } catch (error) {

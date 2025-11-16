@@ -277,6 +277,18 @@ export const db = {
     return result.rows[0];
   },
 
+  async updateProjectMode(id: string, projectMode: string) {
+    const result = await query(
+      `UPDATE projects
+       SET project_mode = $2,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [id, projectMode]
+    );
+    return result.rows[0];
+  },
+
   async deleteProject(id: string) {
     const result = await query(
       'DELETE FROM projects WHERE id = $1 RETURNING *',
@@ -390,12 +402,13 @@ export const db = {
     file_path?: string;
     duration?: number;  // Duration in seconds (numeric)
     prompt?: string;
+    bpm?: number | null;
   }) {
     const result = await query(
-      `INSERT INTO audio_variations (scene_id, title, file_path, duration, prompt)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO audio_variations (scene_id, title, file_path, duration, prompt, bpm)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [data.scene_id, data.title, data.file_path, data.duration, data.prompt || null]
+      [data.scene_id, data.title, data.file_path, data.duration, data.prompt || null, data.bpm || null]
     );
     return result.rows[0];
   },
@@ -406,6 +419,85 @@ export const db = {
       [sceneId]
     );
     return result.rows;
+  },
+
+  // Sound Effects
+  async createSoundEffect(data: {
+    scene_id: string;
+    title: string;
+    description?: string;
+    file_path?: string;
+    timestamp_start: number;
+    duration?: number;
+    prompt?: string;
+    is_recommended?: boolean;
+    is_generated?: boolean;
+  }) {
+    const result = await query(
+      `INSERT INTO sound_effects (scene_id, title, description, file_path, timestamp_start, duration, prompt, is_recommended, is_generated)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        data.scene_id,
+        data.title,
+        data.description || null,
+        data.file_path || null,
+        data.timestamp_start,
+        data.duration || null,
+        data.prompt || null,
+        data.is_recommended || false,
+        data.is_generated || false
+      ]
+    );
+    return result.rows[0];
+  },
+
+  async getSoundEffectsBySceneId(sceneId: string) {
+    const result = await query(
+      'SELECT * FROM sound_effects WHERE scene_id = $1 ORDER BY timestamp_start ASC',
+      [sceneId]
+    );
+    return result.rows;
+  },
+
+  async updateSoundEffect(id: string, data: {
+    file_path?: string;
+    is_generated?: boolean;
+    duration?: number;
+  }) {
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (data.file_path !== undefined) {
+      updates.push(`file_path = $${paramCount++}`);
+      values.push(data.file_path);
+    }
+    if (data.is_generated !== undefined) {
+      updates.push(`is_generated = $${paramCount++}`);
+      values.push(data.is_generated);
+    }
+    if (data.duration !== undefined) {
+      updates.push(`duration = $${paramCount++}`);
+      values.push(data.duration);
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+
+    const result = await query(
+      `UPDATE sound_effects SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      values
+    );
+    return result.rows[0];
+  },
+
+  async deleteSoundEffect(id: string) {
+    const result = await query(
+      'DELETE FROM sound_effects WHERE id = $1 RETURNING *',
+      [id]
+    );
+    return result.rows[0];
   },
 
   // Thumbnails
@@ -475,18 +567,27 @@ export const db = {
 
   // Chat Messages
   async createChatMessage(data: {
+    scene_id?: string;
     project_id?: string;
     user_id: string;
     role: 'user' | 'assistant';
     content: string;
   }) {
     const result = await query(
-      `INSERT INTO chat_messages (project_id, user_id, role, content)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO chat_messages (scene_id, project_id, user_id, role, content)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [data.project_id, data.user_id, data.role, data.content]
+      [data.scene_id, data.project_id, data.user_id, data.role, data.content]
     );
     return result.rows[0];
+  },
+
+  async getChatMessagesBySceneId(sceneId: string) {
+    const result = await query(
+      'SELECT * FROM chat_messages WHERE scene_id = $1 ORDER BY created_at ASC',
+      [sceneId]
+    );
+    return result.rows;
   },
 
   async getChatMessagesByProjectId(projectId: string) {

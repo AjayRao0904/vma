@@ -1,17 +1,9 @@
-import { Suspense } from 'react';
-import MotionPicturesClient from './MotionPicturesClient';
+import { redirect } from 'next/navigation';
 
-// Server Component for SEO and initial rendering
+// Server Component - redirect to dashboard
 export default function MotionPictures() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <div className="text-white text-xl">Loading Motion Pictures Studio...</div>
-      </div>
-    }>
-      <MotionPicturesClient />
-    </Suspense>
-  );
+  // This route is deprecated - users should create/select projects from the dashboard
+  redirect('/dashboard');
 }
 
 // Metadata for SEO

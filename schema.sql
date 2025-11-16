@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS projects (
     description TEXT,
     type VARCHAR(50) DEFAULT 'motion-pictures',
     status VARCHAR(50) DEFAULT 'draft',
+    project_mode VARCHAR(20) DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -82,19 +83,10 @@ CREATE TABLE IF NOT EXISTS voice_messages (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Thumbnails table
-CREATE TABLE IF NOT EXISTS thumbnails (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
-    file_path TEXT NOT NULL,
-    timestamp DECIMAL(10, 2) NOT NULL,
-    session_id VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Chat messages table
+-- Chat messages table (per-scene chat history)
 CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    scene_id UUID REFERENCES scenes(id) ON DELETE CASCADE,
     project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL, -- 'user' or 'assistant'
@@ -135,7 +127,6 @@ CREATE INDEX IF NOT EXISTS idx_scenes_project_id ON scenes(project_id);
 CREATE INDEX IF NOT EXISTS idx_audio_variations_scene_id ON audio_variations(scene_id);
 CREATE INDEX IF NOT EXISTS idx_voice_messages_project_id ON voice_messages(project_id);
 CREATE INDEX IF NOT EXISTS idx_voice_messages_user_id ON voice_messages(user_id);
-CREATE INDEX IF NOT EXISTS idx_thumbnails_video_id ON thumbnails(video_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_project_id ON chat_messages(project_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
 

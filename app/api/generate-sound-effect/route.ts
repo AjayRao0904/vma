@@ -24,11 +24,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { sceneId, soundEffectName, soundEffectDescription } = body;
+    const { sceneId, soundEffectName, soundEffectDescription, timestamp } = body;
 
     if (!sceneId || !soundEffectName || !soundEffectDescription) {
       return NextResponse.json({ error: 'Scene ID, name, and description required' }, { status: 400 });
     }
+
+    const timestampStart = typeof timestamp === 'number' ? timestamp : 0;
 
     // Get scene from database
     const scene = await db.getSceneById(sceneId);
@@ -164,26 +166,32 @@ export async function POST(request: NextRequest) {
 
     logger.info('Audio uploaded to S3', { s3Key });
 
-    // Save to database as audio variation
-    const audioRecord = await db.createAudioVariation({
+    // Save to database as sound effect (not audio variation)
+    const soundEffectRecord = await db.createSoundEffect({
       scene_id: sceneId,
-      title: `${soundEffectName} - ${new Date().toLocaleTimeString()}`,
+      title: soundEffectName,
+      description: soundEffectDescription,
       file_path: s3Key,
-      duration: 5, // Duration in seconds (numeric)
-      prompt: soundPrompt
+      timestamp_start: timestampStart,
+      duration: 5, // Approximate duration in seconds
+      prompt: soundPrompt,
+      is_recommended: false,
+      is_generated: true
     });
 
     logger.info('Sound effect generation complete', {
-      audioId: audioRecord.id,
-      title: audioRecord.title,
+      soundEffectId: soundEffectRecord.id,
+      title: soundEffectRecord.title,
+      timestamp: timestampStart,
       filePath: s3Key
     });
 
     return NextResponse.json({
       success: true,
-      audioId: audioRecord.id,
+      soundEffectId: soundEffectRecord.id,
       audioPath: s3Key,
       soundEffectName,
+      timestamp: timestampStart,
       message: 'Sound effect generated successfully!'
     });
 

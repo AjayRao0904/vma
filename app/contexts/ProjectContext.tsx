@@ -25,18 +25,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [isProjectLoaded, setIsProjectLoaded] = useState(false);
 
   // Load project from localStorage on mount
+  // DISABLED: This causes race conditions when navigating between projects
+  // Instead, projects are loaded explicitly via loadProjectById()
   useEffect(() => {
-    try {
-      const savedProject = localStorage.getItem('currentProject');
-      if (savedProject) {
-        const projectData = JSON.parse(savedProject);
-        setCurrentProjectState(projectData);
-      }
-    } catch (error) {
-      logger.error('Error loading project from localStorage', error);
-    } finally {
-      setIsProjectLoaded(true);
-    }
+    // Just mark as loaded, don't restore from localStorage
+    logger.info('ProjectContext initialized - localStorage restore disabled');
+    setIsProjectLoaded(true);
   }, []);
 
   const setCurrentProject = (project: ProjectData | null) => {
@@ -63,6 +57,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const loadProjectById = useCallback(async (id: string) => {
     try {
+      // Clear current project FIRST to prevent loading old project's data
+      logger.info('Clearing current project before loading new one', { newId: id, oldId: currentProject?.id });
+
+      // Clear localStorage immediately to prevent stale data
+      localStorage.removeItem('currentProject');
+      setCurrentProjectState(null);
+
       logger.info('Fetching project from API', { id });
       const response = await fetch(`/api/projects/${id}`);
 
@@ -71,13 +72,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       }
 
       const project = await response.json();
-      logger.info('Project loaded', { project });
+      logger.info('Project loaded successfully', { projectId: project.id, name: project.name });
       setCurrentProject(project);
     } catch (error) {
       logger.error('Error loading project by ID', error);
       // Optionally show error to user
     }
-  }, [setCurrentProject]);
+  }, [currentProject?.id]);
 
   return (
     <ProjectContext.Provider value={{

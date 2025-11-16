@@ -40,17 +40,12 @@ export default function NewProjectClient() {
       if (!newProject) {
         throw new Error('Failed to create project');
       }
-      
-      // Store project using context for immediate use
-      setCurrentProject({
-        name: newProject.name,
-        description: newProject.description || '',
-        createdAt: newProject.createdAt,
-        id: newProject.id
-      });
-      
-      // Navigate to motion-pictures workspace
-      router.push('/motion-pictures');
+
+      // DO NOT set currentProject here - let StudioClient's loadProjectById handle it
+      // This prevents race conditions with localStorage and ensures clean state
+
+      // Navigate directly to the project's upload page
+      router.push(`/motion-pictures/${newProject.id}`);
     } catch (error) {
       console.error('Error creating project:', error);
       alert('Failed to create project. Please try again.');

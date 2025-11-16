@@ -59,10 +59,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
     }
 
+    // Get project script analysis if available
+    const { Pool } = await import('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+
+    let scriptAnalysis = null;
+    try {
+      const projectResult = await pool.query(
+        'SELECT script_analysis FROM projects WHERE id = $1',
+        [scene.project_id]
+      );
+      scriptAnalysis = projectResult.rows[0]?.script_analysis;
+    } catch (error) {
+      // Column might not exist, that's okay
+      logger.warn('Could not fetch script analysis', { error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+
+    await pool.end();
+
     logger.info('Analyzing scene', {
       userId: user.id.toString(),
       sceneId,
       sceneName: scene.name,
+      hasScriptAnalysis: !!scriptAnalysis
     });
 
     // Get scene file from temp storage (or download from S3 if needed)
@@ -111,9 +132,9 @@ export async function POST(request: NextRequest) {
       await unlink(frame.path);
     }
 
-    // Generate music prompt from all analyses
-    const musicPrompt = generateMusicPrompt(analyses, scene.name);
-    const analysisSummary = generateAnalysisSummary(analyses);
+    // Generate music prompt from all analyses (with script context if available)
+    const musicPrompt = generateMusicPrompt(analyses, scene.name, scriptAnalysis);
+    const analysisSummary = generateAnalysisSummary(analyses, scriptAnalysis);
 
     // Save music prompt to database
     await db.createMusicPrompt({
@@ -355,7 +376,7 @@ function parseTextualAnalysis(text: string): any {
  * Generate music prompt from frame analyses
  * Following ElevenLabs Music best practices: simple, evocative keywords
  */
-function generateMusicPrompt(analyses: any[], sceneName: string): string {
+function generateMusicPrompt(analyses: any[], sceneName: string, scriptAnalysis?: any): string {
   // Aggregate insights from all frames
   const lightingModes = analyses.map(a => a.lighting).filter(Boolean);
   const moods = analyses.map(a => a.mood).filter(Boolean);
@@ -407,11 +428,35 @@ function generateMusicPrompt(analyses: any[], sceneName: string): string {
     moodDescriptors.push('ethereal');
   }
 
+  // Enhance with script context if available
+  let scriptContext = '';
+  if (scriptAnalysis?.scenes) {
+    // Try to find matching scene in script analysis
+    const matchingScene = scriptAnalysis.scenes.find((s: any) =>
+      s.description?.toLowerCase().includes(sceneName.toLowerCase()) ||
+      sceneName.toLowerCase().includes(s.description?.toLowerCase())
+    );
+
+    if (matchingScene) {
+      // Add script-based mood and music suggestions
+      if (matchingScene.musicMood) {
+        moodDescriptors.push(matchingScene.musicMood);
+      }
+      if (matchingScene.emotionalTone && !moodDescriptors.includes(matchingScene.emotionalTone)) {
+        moodDescriptors.push(matchingScene.emotionalTone);
+      }
+      scriptContext = ` Scene context: ${matchingScene.description}.`;
+    } else if (scriptAnalysis.overallMood) {
+      // Use overall mood if no specific scene match
+      moodDescriptors.push(scriptAnalysis.overallMood);
+    }
+  }
+
   // Build simple, evocative prompt (ElevenLabs best practice)
-  const moodPhrase = moodDescriptors.slice(0, 3).join(', ');
+  const moodPhrase = moodDescriptors.slice(0, 4).join(', ');
   const instrumentPhrase = instrumentSuggestions.slice(0, 2).join(' with ');
 
-  const prompt = `${moodPhrase} instrumental. ${instrumentPhrase}. ${tempo} tempo. Cinematic and emotional.`;
+  const prompt = `${moodPhrase} instrumental. ${instrumentPhrase}. ${tempo} tempo. Cinematic and emotional.${scriptContext}`;
 
   return prompt;
 }
@@ -419,10 +464,24 @@ function generateMusicPrompt(analyses: any[], sceneName: string): string {
 /**
  * Generate human-readable analysis summary
  */
-function generateAnalysisSummary(analyses: any[]): string {
-  const summary = analyses.map((a, i) => {
+function generateAnalysisSummary(analyses: any[], scriptAnalysis?: any): string {
+  let summary = analyses.map((a, i) => {
     return `Frame ${i + 1} (${a.timestamp}s): ${a.lighting} lighting, ${a.shot_type} shot, ${a.mood} mood, ${a.emotions} emotions`;
   }).join('\n');
+
+  // Add script context if available
+  if (scriptAnalysis) {
+    summary += `\n\n=== Script Context ===\n`;
+    if (scriptAnalysis.summary) {
+      summary += `Story: ${scriptAnalysis.summary}\n`;
+    }
+    if (scriptAnalysis.themes) {
+      summary += `Themes: ${scriptAnalysis.themes.join(', ')}\n`;
+    }
+    if (scriptAnalysis.overallMood) {
+      summary += `Overall Mood: ${scriptAnalysis.overallMood}\n`;
+    }
+  }
 
   return summary;
 }

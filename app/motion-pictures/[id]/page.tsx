@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import MotionPicturesClient from '../MotionPicturesClient';
+import StudioClient from '../StudioClient';
 import { getServerSession } from 'next-auth';
 
 export default async function MotionPicturePage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +11,6 @@ export default async function MotionPicturePage({ params }: { params: Promise<{ 
 
   const { id } = await params;
 
-  // Pass the project ID to the client component
-  return <MotionPicturesClient projectId={id} />;
+  // Pass the project ID to the NEW Studio client (Phase 1 refactored UI)
+  return <StudioClient projectId={id} />;
 }
