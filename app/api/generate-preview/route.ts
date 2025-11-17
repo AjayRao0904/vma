@@ -116,6 +116,9 @@ export async function POST(request: NextRequest) {
       const { Pool } = await import('pg');
       const pool = new Pool({
         connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? {
+          rejectUnauthorized: false
+        } : false
       });
 
       await pool.query(
