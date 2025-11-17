@@ -11,7 +11,7 @@ const s3Client = new S3Client({
   },
 });
 
-const BUCKET_NAME = process.env.S3_BUCKET_NAME || process.env.AWS_S3_BUCKET!;
+export const BUCKET_NAME = process.env.S3_BUCKET_NAME || process.env.AWS_S3_BUCKET!;
 
 /**
  * Upload a file to S3
@@ -181,4 +181,4 @@ export function generateAudioKey(
   return `${userFolder}/${projectFolder}/audio/${sceneId}/${sanitized}`;
 }
 
-export { s3Client, BUCKET_NAME };
+export { s3Client };
