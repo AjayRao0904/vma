@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
     const { Pool } = await import('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false
+      } : false
     });
 
     let scriptAnalysis = null;
@@ -187,8 +190,52 @@ export async function POST(request: NextRequest) {
  * Get scene file path from temp storage or download from S3
  */
 async function getSceneFile(scene: any): Promise<string | null> {
-  // Scene files should be in temp storage from export
-  // Try to construct the path based on session_id
+  // If no file_path, this is "full scene mode" - get the original video
+  if (!scene.file_path) {
+    logger.info('Scene has no file_path (full scene mode), attempting to use original video', { sceneId: scene.id });
+
+    // Get the original video from the database
+    const video = await db.getVideoById(scene.video_id);
+    if (!video) {
+      logger.error('Video not found for scene', new Error('Video not found'), { sceneId: scene.id, videoId: scene.video_id });
+      return null;
+    }
+
+    // Try to download from S3
+    try {
+      const tempDir = path.join(tmpdir(), 'aalap-videos-analysis', scene.project_id);
+      await mkdir(tempDir, { recursive: true });
+
+      const videoFileName = video.file_name;
+      const videoPath = path.join(tempDir, videoFileName);
+
+      // Check if already downloaded
+      if (existsSync(videoPath)) {
+        logger.info('Original video found in temp', { videoPath });
+        return videoPath;
+      }
+
+      // Download from S3
+      const presignedUrl = await getPresignedUrl(video.file_path, 3600);
+      const response = await fetch(presignedUrl);
+      if (!response.ok) {
+        logger.error('Failed to download video from S3', new Error('Failed to download video'), { status: response.status });
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      await writeFile(videoPath, buffer);
+      logger.info('Original video downloaded from S3', { videoPath });
+
+      return videoPath;
+    } catch (error) {
+      logger.error('Error downloading original video', error instanceof Error ? error : new Error('Unknown error'));
+      return null;
+    }
+  }
+
+  // Scene has file_path - normal scene mode
   const sessionId = scene.session_id;
   if (!sessionId) {
     logger.error('Scene missing session_id', new Error('Scene missing session_id'), { sceneId: scene.id });
