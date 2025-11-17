@@ -10,9 +10,10 @@ import { execSync } from 'child_process';
  */
 export function configureFfmpeg(): void {
   try {
-    // On Linux (production), prioritize system FFmpeg over ffmpeg-static
-    // ffmpeg-static doesn't work reliably in Next.js production builds
+    // On Linux (production), ONLY use system FFmpeg - skip ffmpeg-static entirely
+    // ffmpeg-static doesn't work in Next.js production builds
     if (process.platform === 'linux') {
+      console.log('🐧 Linux detected - using system FFmpeg');
       try {
         const systemFfmpegPath = execSync('which ffmpeg').toString().trim();
         if (systemFfmpegPath && existsSync(systemFfmpegPath)) {
@@ -31,6 +32,10 @@ export function configureFfmpeg(): void {
           }
         }
       }
+
+      console.error('❌ System FFmpeg not found on Linux!');
+      console.warn('⚠️ FFmpeg not found. Video cutting will not work.');
+      return;
     }
 
     // Try ffmpeg-static (for Windows/Mac development)
