@@ -12,20 +12,8 @@ import path from 'path';
 import https from 'https';
 import fs from 'fs';
 
-// Set FFmpeg path - handle both development and production
-const ffmpegPath = (() => {
-  try {
-    const ffmpegStatic = require('ffmpeg-static');
-    const actualPath = ffmpegStatic.replace(/^.*[\\\/]node_modules/, path.join(process.cwd(), 'node_modules'));
-    return actualPath;
-  } catch (error) {
-    // Fallback to system ffmpeg
-    return 'ffmpeg';
-  }
-})();
-
-logger.info('FFmpeg path configured', { ffmpegPath });
-ffmpeg.setFfmpegPath(ffmpegPath);
+// Use centralized FFmpeg configuration
+import '../../lib/ffmpeg-config';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
