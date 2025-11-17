@@ -10,7 +10,30 @@ import { execSync } from 'child_process';
  */
 export function configureFfmpeg(): void {
   try {
-    // Try ffmpeg-static first (works on all platforms)
+    // On Linux (production), prioritize system FFmpeg over ffmpeg-static
+    // ffmpeg-static doesn't work reliably in Next.js production builds
+    if (process.platform === 'linux') {
+      try {
+        const systemFfmpegPath = execSync('which ffmpeg').toString().trim();
+        if (systemFfmpegPath && existsSync(systemFfmpegPath)) {
+          ffmpeg.setFfmpegPath(systemFfmpegPath);
+          console.log(`✅ Using system FFmpeg: ${systemFfmpegPath}`);
+          return;
+        }
+      } catch {
+        // which command failed, try common paths
+        const commonPaths = ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'];
+        for (const ffmpegPath of commonPaths) {
+          if (existsSync(ffmpegPath)) {
+            ffmpeg.setFfmpegPath(ffmpegPath);
+            console.log(`✅ Using system FFmpeg: ${ffmpegPath}`);
+            return;
+          }
+        }
+      }
+    }
+
+    // Try ffmpeg-static (for Windows/Mac development)
     try {
       let ffmpegStatic = require('ffmpeg-static');
       console.log('🔍 ffmpeg-static raw path:', ffmpegStatic);
@@ -36,28 +59,6 @@ export function configureFfmpeg(): void {
     } catch (error: any) {
       console.log('❌ ffmpeg-static error:', error.message);
       console.log('   Trying system FFmpeg...');
-    }
-
-    // Check if we're on Linux (production) - try system FFmpeg
-    if (process.platform === 'linux') {
-      try {
-        const systemFfmpegPath = execSync('which ffmpeg').toString().trim();
-        if (systemFfmpegPath && existsSync(systemFfmpegPath)) {
-          ffmpeg.setFfmpegPath(systemFfmpegPath);
-          console.log(`✅ Using system FFmpeg: ${systemFfmpegPath}`);
-          return;
-        }
-      } catch {
-        // which command failed, try common paths
-        const commonPaths = ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'];
-        for (const ffmpegPath of commonPaths) {
-          if (existsSync(ffmpegPath)) {
-            ffmpeg.setFfmpegPath(ffmpegPath);
-            console.log(`✅ Using system FFmpeg: ${ffmpegPath}`);
-            return;
-          }
-        }
-      }
     }
 
     // Windows - try 'where' command
