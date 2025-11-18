@@ -475,35 +475,86 @@ function generateMusicPrompt(analyses: any[], sceneName: string, scriptAnalysis?
     moodDescriptors.push('ethereal');
   }
 
-  // Enhance with script context if available
+  // Enhance with script context if available - THIS IS KEY FOR PROJECT-WIDE COHESION
   let scriptContext = '';
-  if (scriptAnalysis?.scenes) {
-    // Try to find matching scene in script analysis
-    const matchingScene = scriptAnalysis.scenes.find((s: any) =>
-      s.description?.toLowerCase().includes(sceneName.toLowerCase()) ||
-      sceneName.toLowerCase().includes(s.description?.toLowerCase())
-    );
+  let projectMusicalDirection = '';
 
-    if (matchingScene) {
-      // Add script-based mood and music suggestions
-      if (matchingScene.musicMood) {
-        moodDescriptors.push(matchingScene.musicMood);
+  if (scriptAnalysis) {
+    logger.info('Script analysis found', {
+      hasMusicalDirection: !!scriptAnalysis.musicalDirection,
+      scriptAnalysisKeys: Object.keys(scriptAnalysis),
+      musicalDirectionKeys: scriptAnalysis.musicalDirection ? Object.keys(scriptAnalysis.musicalDirection) : []
+    });
+
+    // PRIORITY 1: Apply project-wide musical direction from script analysis
+    // This ensures ALL scenes maintain the overall project's audio flavor
+    if (scriptAnalysis.musicalDirection) {
+      const md = scriptAnalysis.musicalDirection;
+
+      // Override genre and instrumentation from project analysis
+      if (md.genre) {
+        moodDescriptors.unshift(md.genre); // Add at front for priority
       }
-      if (matchingScene.emotionalTone && !moodDescriptors.includes(matchingScene.emotionalTone)) {
-        moodDescriptors.push(matchingScene.emotionalTone);
+
+      // Use script's instrumentation preferences
+      if (md.instrumentation) {
+        instrumentSuggestions = [md.instrumentation];
       }
-      scriptContext = ` Scene context: ${matchingScene.description}.`;
-    } else if (scriptAnalysis.overallMood) {
-      // Use overall mood if no specific scene match
-      moodDescriptors.push(scriptAnalysis.overallMood);
+
+      // Apply tonal palette
+      if (md.tonalPalette) {
+        moodDescriptors.push(md.tonalPalette);
+      }
+
+      // Add musical themes as context
+      if (md.musicalThemes) {
+        projectMusicalDirection = ` Project theme: ${md.musicalThemes}.`;
+      }
+
+      // Override tempo if specified
+      if (md.tempo) {
+        tempo = md.tempo;
+      }
+    }
+
+    // PRIORITY 2: Find scene-specific nuances while maintaining project flavor
+    if (scriptAnalysis.scenes) {
+      const matchingScene = scriptAnalysis.scenes.find((s: any) =>
+        s.description?.toLowerCase().includes(sceneName.toLowerCase()) ||
+        sceneName.toLowerCase().includes(s.description?.toLowerCase())
+      );
+
+      if (matchingScene) {
+        // Add scene-specific mood (but project flavor dominates)
+        if (matchingScene.musicMood) {
+          moodDescriptors.push(matchingScene.musicMood);
+        }
+        if (matchingScene.emotionalTone && !moodDescriptors.includes(matchingScene.emotionalTone)) {
+          moodDescriptors.push(matchingScene.emotionalTone);
+        }
+        scriptContext = ` Scene context: ${matchingScene.description}.`;
+      } else if (scriptAnalysis.overallMood) {
+        // Fallback to overall mood
+        moodDescriptors.push(scriptAnalysis.overallMood);
+      }
     }
   }
 
-  // Build simple, evocative prompt (ElevenLabs best practice)
-  const moodPhrase = moodDescriptors.slice(0, 4).join(', ');
-  const instrumentPhrase = instrumentSuggestions.slice(0, 2).join(' with ');
+  // Build prompt with project-wide direction taking precedence
+  // Format: [Project Genre] [Scene-specific moods] [Project Instrumentation] [Tempo] [Themes]
+  const moodPhrase = moodDescriptors.length > 0 ? moodDescriptors.slice(0, 5).join(', ') : 'atmospheric, cinematic';
+  const instrumentPhrase = instrumentSuggestions.length > 0 ? instrumentSuggestions.slice(0, 2).join(' with ') : 'orchestral elements';
 
-  const prompt = `${moodPhrase} instrumental. ${instrumentPhrase}. ${tempo} tempo. Cinematic and emotional.${scriptContext}`;
+  const prompt = `${moodPhrase} instrumental. ${instrumentPhrase}. ${tempo} tempo. Cinematic and emotional.${projectMusicalDirection}${scriptContext}`;
+
+  logger.info('Generated music prompt', {
+    moodDescriptors,
+    instrumentSuggestions,
+    tempo,
+    hasProjectDirection: !!projectMusicalDirection,
+    hasScriptContext: !!scriptContext,
+    prompt
+  });
 
   return prompt;
 }

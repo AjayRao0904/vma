@@ -20,15 +20,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { projectId, scriptContent } = body;
+    let { projectId, scriptContent, scriptS3Key, scriptFileName } = body;
 
     if (!projectId || !scriptContent) {
       return NextResponse.json({ error: 'Project ID and script content required' }, { status: 400 });
     }
 
+    // Remove null bytes and other invalid characters that PostgreSQL can't handle
+    scriptContent = scriptContent.replace(/\0/g, '').trim();
+
     logger.info('Analyzing script', {
       projectId,
-      scriptLength: scriptContent.length
+      scriptLength: scriptContent.length,
+      hasS3File: !!scriptS3Key
     });
 
     // Use OpenAI to analyze the script
@@ -38,13 +42,16 @@ export async function POST(request: NextRequest) {
     const { Pool } = await import('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false
+      } : false
     });
 
     await pool.query(
       `UPDATE projects
-       SET script_content = $1, script_analysis = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3`,
-      [scriptContent, JSON.stringify(analysis), projectId]
+       SET script_content = $1, script_analysis = $2, script_file_path = $3, script_file_name = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5`,
+      [scriptContent, JSON.stringify(analysis), scriptS3Key || null, scriptFileName || null, projectId]
     );
 
     await pool.end();
@@ -70,7 +77,7 @@ export async function POST(request: NextRequest) {
 
 async function analyzeScriptWithAI(scriptContent: string) {
   try {
-    const prompt = `Analyze this screenplay/script and extract structured information.
+    const prompt = `Analyze this screenplay/script and extract structured information with a focus on musical direction.
 
 Script:
 ${scriptContent}
@@ -78,20 +85,24 @@ ${scriptContent}
 Please analyze this script and provide:
 1. Overall story summary
 2. Key themes and mood
-3. Scene breakdown with:
-   - Scene description
-   - Setting (location, time of day, interior/exterior)
-   - Characters present
-   - Key dialogue or action
-   - Emotional tone
-   - Suggested music mood
-   - Suggested sound effects
+3. **Musical direction for the entire project** - This is critical for maintaining consistent audio flavor across all scenes
+4. Scene breakdown with individual music suggestions
 
 Return ONLY valid JSON in this format:
 {
   "summary": "Brief story summary",
   "themes": ["theme1", "theme2"],
   "overallMood": "overall emotional tone",
+  "musicalDirection": {
+    "genre": "The primary musical genre (thriller, drama, romance, action, comedy, etc.)",
+    "instrumentation": "Recommended instruments and sounds (orchestral, synth, ambient, acoustic, etc.)",
+    "tempo": "Overall pacing (slow/meditative, moderate, fast/intense)",
+    "emotionalArcs": "Key emotional journey (e.g., 'starts tense, builds to hopeful climax, resolves peacefully')",
+    "musicalThemes": "Recurring motifs or musical ideas that should thread through all scenes",
+    "tonalPalette": "Harmonic qualities (dark/minor, bright/major, dissonant, harmonious, etc.)",
+    "dynamicRange": "Energy levels throughout (quiet introspection to explosive crescendos)",
+    "culturalInfluences": "Any specific cultural or period music styles relevant to the story"
+  },
   "scenes": [
     {
       "sceneNumber": 1,
@@ -104,7 +115,7 @@ Return ONLY valid JSON in this format:
       "characters": ["character names"],
       "keyDialogue": "Notable dialogue or action",
       "emotionalTone": "tone of this scene",
-      "musicMood": "suggested music mood",
+      "musicMood": "suggested music mood for this specific scene (should complement overall musical direction)",
       "suggestedSoundEffects": ["sound effect 1", "sound effect 2"]
     }
   ]
@@ -115,7 +126,7 @@ Return ONLY valid JSON in this format:
       messages: [
         {
           role: 'system',
-          content: 'You are a professional script supervisor and sound designer. Analyze scripts to extract detailed scene information for audio production. Always return valid JSON.'
+          content: 'You are a professional film composer and music supervisor with expertise in script analysis. Your role is to extract deep musical direction from scripts that will guide music generation across the entire project. Think like Hans Zimmer or John Williams - identify the emotional core, thematic elements, and musical palette that will make the story resonate. Always return valid JSON.'
         },
         {
           role: 'user',

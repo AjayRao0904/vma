@@ -32,11 +32,16 @@ export default function StudioClient({ projectId }: StudioClientProps) {
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoId, setVideoId] = useState<string>('');
   const [scriptContent, setScriptContent] = useState<string>('');
+  const [scriptS3Key, setScriptS3Key] = useState<string>('');
+  const [scriptFileName, setScriptFileName] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [soundEffectsMode, setSoundEffectsMode] = useState(false);
 
   // Track if we've loaded this project to prevent infinite loops
   const loadedProjectIdRef = useRef<string | null>(null);
+
+  // Track scenes that already have analysis triggered to prevent duplicate calls
+  const scenesWithAnalysisRef = useRef<Set<string>>(new Set());
 
   // Authentication
   useEffect(() => {
@@ -176,8 +181,38 @@ export default function StudioClient({ projectId }: StudioClientProps) {
     setIsAnalyzing(true);
     logger.info('Running analysis stub...', { mode, hasScript: !!scriptContent });
 
-    // Simulate analysis delay (2 seconds)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // If script was uploaded, analyze it first to extract project-wide musical direction
+    if (scriptContent && currentProject?.id) {
+      try {
+        logger.info('Analyzing uploaded script for musical direction', { projectId: currentProject.id });
+        const scriptResponse = await fetch('/api/analyze-script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: currentProject.id,
+            scriptContent: scriptContent,
+            scriptS3Key: scriptS3Key || undefined,
+            scriptFileName: scriptFileName || undefined
+          })
+        });
+
+        if (scriptResponse.ok) {
+          const scriptResult = await scriptResponse.json();
+          logger.info('Script analysis complete', {
+            projectId: currentProject.id,
+            hasMusicalDirection: !!scriptResult.analysis?.musicalDirection,
+            scenesFound: scriptResult.analysis?.scenes?.length || 0
+          });
+        } else {
+          logger.error('Script analysis failed', { status: scriptResponse.status });
+        }
+      } catch (error) {
+        logger.error('Error analyzing script', error);
+      }
+    }
+
+    // Simulate brief delay for UX
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     setIsAnalyzing(false);
     setProjectMode(mode);
@@ -219,6 +254,9 @@ export default function StudioClient({ projectId }: StudioClientProps) {
             // Auto-select the entire video scene for the chat
             setSelectedScene(newScene);
             logger.info('Created and saved entire video scene', savedScene);
+
+            // Mark scene as having analysis triggered to prevent duplicate calls
+            scenesWithAnalysisRef.current.add(savedScene.id);
 
             // Trigger automatic analysis for the entire video
             logger.info('Starting automatic scene analysis', { sceneId: savedScene.id });
@@ -280,18 +318,49 @@ export default function StudioClient({ projectId }: StudioClientProps) {
       const analysisData = await response.json();
       logger.info('Scene analysis complete', analysisData);
 
+      // Fetch project's script analysis if available
+      let scriptAnalysisSection = '';
+      if (currentProject) {
+        try {
+          const projectResponse = await fetch(`/api/projects/${currentProject.id}`);
+          if (projectResponse.ok) {
+            const projectData = await projectResponse.json();
+            if (projectData.script_analysis) {
+              const sa = typeof projectData.script_analysis === 'string'
+                ? JSON.parse(projectData.script_analysis)
+                : projectData.script_analysis;
+
+              if (sa.musicalDirection) {
+                const md = sa.musicalDirection;
+                scriptAnalysisSection = `\n\n📜 Project-Wide Musical Direction (from script):
+• Genre: ${md.genre || 'Not specified'}
+• Instrumentation: ${md.instrumentation || 'Not specified'}
+• Tempo: ${md.tempo || 'Not specified'}
+• Tonal Palette: ${md.tonalPalette || 'Not specified'}
+• Musical Themes: ${md.musicalThemes || 'Not specified'}
+• Emotional Arc: ${md.emotionalArcs || 'Not specified'}
+${md.culturalInfluences ? `• Cultural Influences: ${md.culturalInfluences}` : ''}`;
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn('Could not fetch script analysis', err);
+        }
+      }
+
       // Create analysis summary (visible by default)
       const summary = `Scene Analysis Complete 🎬
 
 I've analyzed ${mode === 'entire' ? 'your entire video' : 'this scene'} and here's what I found:
 
-Visual Characteristics:
+🎥 Visual Characteristics:
 • Mood: ${analysisData.detailedAnalysis?.visualFeatures?.dominantMood || 'Not detected'}
 • Lighting: ${analysisData.detailedAnalysis?.visualFeatures?.dominantLighting || 'Not detected'}
 • Shot Type: ${analysisData.detailedAnalysis?.visualFeatures?.dominantShotType || 'Not detected'}
 • Color Palette: ${analysisData.detailedAnalysis?.visualFeatures?.dominantColor || 'Not detected'}
+${scriptAnalysisSection}
 
-Music Recommendation:
+🎵 Music Recommendation:
 ${analysisData.musicPrompt}
 
 What would you like me to create for you?`;
@@ -328,8 +397,15 @@ ${detailedAnalysis}`;
 
   // Auto-trigger analysis for scenes without chat history
   useEffect(() => {
-    if (selectedScene && selectedScene.chatHistory && selectedScene.chatHistory.length === 0) {
+    if (selectedScene && selectedScene.id && selectedScene.chatHistory && selectedScene.chatHistory.length === 0) {
+      // Skip if we already triggered analysis for this scene
+      if (scenesWithAnalysisRef.current.has(selectedScene.id)) {
+        logger.info('Scene analysis already triggered, skipping duplicate', { sceneId: selectedScene.id });
+        return;
+      }
+
       logger.info('Scene has no chat history, triggering analysis', { sceneId: selectedScene.id });
+      scenesWithAnalysisRef.current.add(selectedScene.id);
       triggerSceneAnalysis(selectedScene.id, projectMode || 'scenes');
     }
   }, [selectedScene?.id]);
@@ -370,14 +446,25 @@ ${detailedAnalysis}`;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleUploadComplete = (url: string, duration: number, vId: string, script?: string) => {
+  const handleUploadComplete = (url: string, duration: number, vId: string, script?: string, scriptKey?: string, scriptFile?: string) => {
     setVideoUrl(url);
     setVideoDuration(duration);
     setVideoId(vId);
     if (script) {
       setScriptContent(script);
     }
-    logger.info('Video upload complete', { duration, videoId: vId, hasScript: !!script });
+    if (scriptKey) {
+      setScriptS3Key(scriptKey);
+    }
+    if (scriptFile) {
+      setScriptFileName(scriptFile);
+    }
+    logger.info('Video upload complete', {
+      duration,
+      videoId: vId,
+      hasScript: !!script,
+      hasScriptFile: !!scriptKey
+    });
 
     // Show project setup dialog immediately
     setShowProjectSetup(true);
@@ -429,7 +516,10 @@ ${detailedAnalysis}`;
         projectMode={projectMode}
         projectId={currentProject?.id || ''}
         videoId={videoId}
-        onSceneCreated={(sceneId) => triggerSceneAnalysis(sceneId, 'scenes')}
+        onSceneCreated={(sceneId) => {
+          scenesWithAnalysisRef.current.add(sceneId);
+          triggerSceneAnalysis(sceneId, 'scenes');
+        }}
       />
 
       {/* Right Sidebar - Director Chat */}

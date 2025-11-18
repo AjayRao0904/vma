@@ -18,6 +18,7 @@ This folder contains all database schema migrations for the Aalap VMA applicatio
 | `005_add_sound_effects_table.sql` | Create sound effects table | `sound_effects` (new) |
 | `006_add_preview_selection.sql` | Add preview/import selection flags | `audio_variations`, `sound_effects`, `preview_tracks` (new) |
 | `007_add_scene_id_to_chat_messages.sql` | Add scene_id to chat messages | `chat_messages` |
+| `008_add_script_file_path.sql` | Add S3 path for script files | `projects` |
 
 ## For New Databases
 
@@ -40,6 +41,7 @@ psql -U postgres -d aalap_vma -f migrations/004_add_script_support.sql
 psql -U postgres -d aalap_vma -f migrations/005_add_sound_effects_table.sql
 psql -U postgres -d aalap_vma -f migrations/006_add_preview_selection.sql
 psql -U postgres -d aalap_vma -f migrations/007_add_scene_id_to_chat_messages.sql
+psql -U postgres -d aalap_vma -f migrations/008_add_script_file_path.sql
 ```
 
 Or run all at once:

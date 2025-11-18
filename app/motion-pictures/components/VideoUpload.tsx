@@ -6,7 +6,7 @@ import { useProject } from "../../contexts/ProjectContext";
 import { logger } from "../../lib/logger";
 
 interface VideoUploadProps {
-  onUploadComplete: (videoUrl: string, duration: number, videoId: string, scriptContent?: string) => void;
+  onUploadComplete: (videoUrl: string, duration: number, videoId: string, scriptContent?: string, scriptS3Key?: string, scriptFileName?: string) => void;
 }
 
 export default function VideoUpload({ onUploadComplete }: VideoUploadProps) {
@@ -31,14 +31,56 @@ export default function VideoUpload({ onUploadComplete }: VideoUploadProps) {
     const file = acceptedFiles[0];
     setScriptFile(file);
 
-    // Read script content
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
+    try {
+      let content = '';
+
+      // Check file type and extract text accordingly
+      if (file.name.toLowerCase().endsWith('.docx')) {
+        // Extract text from DOCX using mammoth
+        const mammoth = await import('mammoth');
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        content = result.value;
+        logger.info('DOCX text extracted', { name: file.name, contentLength: content.length });
+      } else if (file.name.toLowerCase().endsWith('.pdf')) {
+        // Extract text from PDF using pdfjs-dist
+        const pdfjsLib = await import('pdfjs-dist');
+
+        // Set worker source
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        const textPages: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          textPages.push(pageText);
+        }
+
+        content = textPages.join('\n\n');
+        logger.info('PDF text extracted', { name: file.name, pages: pdf.numPages, contentLength: content.length });
+      } else {
+        throw new Error('Unsupported file format. Please upload DOCX or PDF files only.');
+      }
+
+      // Remove null bytes and other invalid characters
+      content = content.replace(/\0/g, '').trim();
+
+      if (!content || content.length < 50) {
+        throw new Error('Script content is too short or empty. Please check your file.');
+      }
+
       setScriptContent(content);
-      logger.info('Script file loaded', { name: file.name, contentLength: content.length });
-    };
-    reader.readAsText(file);
+      logger.info('Script content ready', { contentLength: content.length });
+    } catch (error) {
+      logger.error('Error reading script file', error);
+      setError(error instanceof Error ? error.message : 'Failed to read script file');
+      setScriptContent('');
+      setScriptFile(null);
+    }
   }, []);
 
   const handleUpload = useCallback(async () => {
@@ -69,6 +111,34 @@ export default function VideoUpload({ onUploadComplete }: VideoUploadProps) {
 
       const data = await response.json();
       logger.info('Video uploaded successfully', { videoId: data.videoId });
+
+      setProgress(50);
+
+      // Upload script file to S3 if provided
+      let scriptS3Key = null;
+      if (scriptFile) {
+        try {
+          const scriptFormData = new FormData();
+          scriptFormData.append('script', scriptFile);
+          scriptFormData.append('projectId', currentProject.id);
+
+          const scriptResponse = await fetch('/api/upload-script', {
+            method: 'POST',
+            body: scriptFormData,
+          });
+
+          if (scriptResponse.ok) {
+            const scriptData = await scriptResponse.json();
+            scriptS3Key = scriptData.s3Key;
+            logger.info('Script uploaded to S3', { scriptS3Key });
+          } else {
+            logger.warn('Script upload failed, continuing with text content only');
+          }
+        } catch (scriptErr) {
+          logger.error('Error uploading script to S3', scriptErr);
+          // Continue anyway - we still have the text content
+        }
+      }
 
       setProgress(75);
 
@@ -101,8 +171,15 @@ export default function VideoUpload({ onUploadComplete }: VideoUploadProps) {
 
       setProgress(100);
 
-      // Notify parent with video URL, video ID, and optional script content
-      onUploadComplete(presignedUrl, duration, data.videoId, scriptContent || undefined);
+      // Notify parent with video URL, video ID, and optional script data
+      onUploadComplete(
+        presignedUrl,
+        duration,
+        data.videoId,
+        scriptContent || undefined,
+        scriptS3Key || undefined,
+        scriptFile?.name
+      );
 
     } catch (err) {
       logger.error('Video upload error', err);
@@ -124,7 +201,8 @@ export default function VideoUpload({ onUploadComplete }: VideoUploadProps) {
   const { getRootProps: getScriptRootProps, getInputProps: getScriptInputProps, isDragActive: isScriptDragActive } = useDropzone({
     onDrop: onScriptDrop,
     accept: {
-      'text/*': ['.txt', '.pdf', '.doc', '.docx']
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/pdf': ['.pdf']
     },
     maxFiles: 1,
     disabled: uploading
@@ -227,7 +305,7 @@ export default function VideoUpload({ onUploadComplete }: VideoUploadProps) {
                   <p className="text-sm font-medium text-white mb-1">
                     {isScriptDragActive ? 'Drop script here' : 'Drop script or click'}
                   </p>
-                  <p className="text-xs text-gray-500">TXT, PDF, DOC, DOCX</p>
+                  <p className="text-xs text-gray-500">DOCX or PDF only</p>
                 </>
               )}
             </div>

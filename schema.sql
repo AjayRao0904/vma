@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS projects (
     project_mode VARCHAR(20) DEFAULT NULL,
     script_content TEXT,
     script_file_name VARCHAR(255),
+    script_file_path TEXT,
     script_analysis JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
