@@ -308,14 +308,32 @@ export default function StudioClient({ projectId }: StudioClientProps) {
     try {
       logger.info('Calling analyze-scene API', { sceneId });
 
+      // Add initial "analyzing" message to chat
+      addChatMessage(sceneId, {
+        role: 'assistant',
+        content: '🎬 Analyzing your video... This may take a few minutes for longer videos. Please wait...'
+      });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minute timeout
+
       const response = await fetch('/api/analyze-scene', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId })
+        body: JSON.stringify({ sceneId }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         logger.error('Scene analysis failed', { status: response.status });
+
+        // Update chat with error
+        addChatMessage(sceneId, {
+          role: 'assistant',
+          content: '❌ Scene analysis failed. Please try again or describe what kind of music you\'d like.'
+        });
         return;
       }
 

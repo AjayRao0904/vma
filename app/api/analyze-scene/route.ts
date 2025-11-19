@@ -24,6 +24,9 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
+// Increase timeout for long video analysis (10 minutes)
+export const maxDuration = 600; // 600 seconds = 10 minutes
+
 /**
  * POST /api/analyze-scene
  * Analyzes a scene using LLaVA-13B vision model
