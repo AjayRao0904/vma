@@ -181,6 +181,9 @@ export default function StudioClient({ projectId }: StudioClientProps) {
     setIsAnalyzing(true);
     logger.info('Running analysis stub...', { mode, hasScript: !!scriptContent });
 
+    // Store script analysis result to use later
+    let scriptAnalysisResult: any = null;
+
     // If script was uploaded, analyze it first to extract project-wide musical direction
     if (scriptContent && currentProject?.id) {
       try {
@@ -197,11 +200,11 @@ export default function StudioClient({ projectId }: StudioClientProps) {
         });
 
         if (scriptResponse.ok) {
-          const scriptResult = await scriptResponse.json();
+          scriptAnalysisResult = await scriptResponse.json();
           logger.info('Script analysis complete', {
             projectId: currentProject.id,
-            hasMusicalDirection: !!scriptResult.analysis?.musicalDirection,
-            scenesFound: scriptResult.analysis?.scenes?.length || 0
+            hasMusicalDirection: !!scriptAnalysisResult.analysis?.musicalDirection,
+            scenesFound: scriptAnalysisResult.analysis?.scenes?.length || 0
           });
         } else {
           logger.error('Script analysis failed', { status: scriptResponse.status });
@@ -259,8 +262,9 @@ export default function StudioClient({ projectId }: StudioClientProps) {
             scenesWithAnalysisRef.current.add(savedScene.id);
 
             // Trigger automatic analysis for the entire video
+            // Pass script analysis result to avoid race condition
             logger.info('Starting automatic scene analysis', { sceneId: savedScene.id });
-            triggerSceneAnalysis(savedScene.id, mode);
+            triggerSceneAnalysis(savedScene.id, mode, scriptAnalysisResult?.analysis);
           } else {
             const newScene = {
               ...entireScene,
@@ -300,7 +304,7 @@ export default function StudioClient({ projectId }: StudioClientProps) {
   };
 
   // Trigger scene analysis and store result in chat
-  const triggerSceneAnalysis = async (sceneId: string, mode: 'entire' | 'scenes') => {
+  const triggerSceneAnalysis = async (sceneId: string, mode: 'entire' | 'scenes', scriptAnalysis?: any) => {
     try {
       logger.info('Calling analyze-scene API', { sceneId });
 
@@ -318,9 +322,22 @@ export default function StudioClient({ projectId }: StudioClientProps) {
       const analysisData = await response.json();
       logger.info('Scene analysis complete', analysisData);
 
-      // Fetch project's script analysis if available
+      // Build script analysis section from provided data or fetch from database
       let scriptAnalysisSection = '';
-      if (currentProject) {
+
+      // Use provided script analysis first (avoids race condition)
+      if (scriptAnalysis?.musicalDirection) {
+        const md = scriptAnalysis.musicalDirection;
+        scriptAnalysisSection = `\n\n📜 Project-Wide Musical Direction (from script):
+• Genre: ${md.genre || 'Not specified'}
+• Instrumentation: ${md.instrumentation || 'Not specified'}
+• Tempo: ${md.tempo || 'Not specified'}
+• Tonal Palette: ${md.tonalPalette || 'Not specified'}
+• Musical Themes: ${md.musicalThemes || 'Not specified'}
+• Emotional Arc: ${md.emotionalArcs || 'Not specified'}
+${md.culturalInfluences ? `• Cultural Influences: ${md.culturalInfluences}` : ''}`;
+      } else if (currentProject) {
+        // Fallback: fetch from database if not provided
         try {
           const projectResponse = await fetch(`/api/projects/${currentProject.id}`);
           if (projectResponse.ok) {
